@@ -1,0 +1,26 @@
+{
+  "Index": {
+    "title": "Akwaaba kɔ CocoaLink",
+    "subtitle": "Kyerɛ Cocoa Akuafoɔ ne Adetɔfoɔ wɔ Ghana",
+    "priceFeed": "Cocoa Boɔ Mprempren",
+    "browseListings": "Hwɛ Nneɛma a Wɔatwerɛ",
+    "getStarted": "Hyɛ Ase"
+  },
+  "Auth": {
+    "login": "Kɔ Mu",
+    "register": "Kyerɛw Wo Din",
+    "email": "Email Adrɛse",
+    "password": "Nnawsua",
+    "role": "Meyɛ",
+    "farmer": "Okuafoɔ",
+    "buyer": "Adetɔni"
+  },
+  "Listings": {
+    "title": "Cocoa Nneɛma",
+    "grade": "Kratafa",
+    "quantity": "Kɛseɛ (kg)",
+    "price": "Boɔ (GHS/Tonne)",
+    "region": "Mantamu",
+    "contact": "Kasa kyerɛ Okuafoɔ no"
+  }
+}

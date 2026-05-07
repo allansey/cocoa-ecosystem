@@ -1,0 +1,26 @@
+{
+  "Index": {
+    "title": "Welcome to CocoaLink",
+    "subtitle": "Connecting Cocoa Farmers and Buyers in Ghana",
+    "priceFeed": "Current Cocoa Price",
+    "browseListings": "Browse Listings",
+    "getStarted": "Get Started"
+  },
+  "Auth": {
+    "login": "Login",
+    "register": "Register",
+    "email": "Email Address",
+    "password": "Password",
+    "role": "I am a",
+    "farmer": "Farmer",
+    "buyer": "Buyer"
+  },
+  "Listings": {
+    "title": "Cocoa Listings",
+    "grade": "Grade",
+    "quantity": "Quantity (kg)",
+    "price": "Price (GHS/Tonne)",
+    "region": "Region",
+    "contact": "Contact Farmer"
+  }
+}

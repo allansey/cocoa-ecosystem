@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String
+  role      String    @default("BUYER") // FARMER, BUYER
+  name      String
+  phone     String?
+  createdAt DateTime  @default(now())
+  
+  listings  Listing[]
+  orders    Order[]   @relation("BuyerOrders")
+  sales     Order[]   @relation("FarmerSales")
+  reviews   Review[]
+  readings  SensorReading[]
+}
+
+model Listing {
+  id               String        @id @default(uuid())
+  grade            String
+  quantityKg       Float
+  priceGhsPerTonne Float
+  region           String
+  photo            String?       // SQLite doesn't support String[]
+  status           String        @default("AVAILABLE") // AVAILABLE, SOLD
+  farmerId         String
+  createdAt        DateTime      @default(now())
+  
+  farmer           User          @relation(fields: [farmerId], references: [id])
+  orders           Order[]
+}
+
+model Order {
+  id            String      @id @default(uuid())
+  listingId     String
+  buyerId       String
+  farmerId      String
+  quantityKg    Float
+  totalAmount   Float
+  status        String      @default("PENDING") // PENDING, PAID, SHIPPED, COMPLETED, CANCELLED
+  paymentMethod String      @default("MOMO") // MOMO, CARD, CASH
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  listing       Listing     @relation(fields: [listingId], references: [id])
+  buyer         User        @relation("BuyerOrders", fields: [buyerId], references: [id])
+  farmer        User        @relation("FarmerSales", fields: [farmerId], references: [id])
+  review        Review?
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  orderId   String   @unique
+  userId    String   // Reviewer
+  rating    Int      @default(5)
+  comment   String?
+  createdAt DateTime @default(now())
+
+  order     Order    @relation(fields: [orderId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model SensorReading {
+  id            String   @id @default(uuid())
+  userId        String   // Farmer ID
+  soilMoisture  Float
+  temperature   Float
+  humidity      Float
+  createdAt     DateTime @default(now())
+
+  farmer        User     @relation(fields: [userId], references: [id])
+}
