@@ -139,7 +139,7 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
               />
               <div className="absolute -bottom-6 -right-6 bg-slate-900 text-white p-8 rounded-3xl shadow-2xl max-w-[240px]">
                 <Heart className="text-rose-500 mb-2" size={32} />
-                <p className="font-bold text-lg leading-snug italic">"Empowering the hands that feed the nation."</p>
+                <p className="font-bold text-lg leading-snug italic">&quot;Empowering the hands that feed the nation.&quot;</p>
               </div>
             </div>
           </div>

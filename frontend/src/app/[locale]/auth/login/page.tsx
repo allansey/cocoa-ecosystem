@@ -63,7 +63,7 @@ export default function LoginPage({ params: { locale } }: { params: { locale: st
         </button>
       </form>
       <div className="mt-6 text-center text-sm text-slate-500">
-        Don't have an account? <Link href={`/${locale}/auth/register`} className="text-amber-600 font-medium hover:underline">{t('register')}</Link>
+        Don&apos;t have an account? <Link href={`/${locale}/auth/register`} className="text-amber-600 font-medium hover:underline">{t('register')}</Link>
       </div>
     </div>
   );
