@@ -33,7 +33,7 @@ export default function CreateListingPage({ params: { locale } }: { params: { lo
         quantityKg: Number(quantityKg),
         priceGhsPerTonne: Number(priceGhsPerTonne),
         region,
-        photos: [] // mock photos
+        photo: "" // mock photo
       });
       router.push(`/${locale}/dashboard`);
     } catch (err: any) {

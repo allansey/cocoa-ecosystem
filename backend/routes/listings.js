@@ -68,7 +68,7 @@ router.get('/:id', async (req, res) => {
 // POST new listing (Farmers only)
 router.post('/', [authMiddleware, farmerRoleMiddleware], async (req, res) => {
   try {
-    const { grade, quantityKg, priceGhsPerTonne, region, photos } = req.body;
+    const { grade, quantityKg, priceGhsPerTonne, region, photo } = req.body;
 
     const newListing = await prisma.listing.create({
       data: {
@@ -76,7 +76,7 @@ router.post('/', [authMiddleware, farmerRoleMiddleware], async (req, res) => {
         quantityKg: parseFloat(quantityKg),
         priceGhsPerTonne: parseFloat(priceGhsPerTonne),
         region,
-        photos: photos || [],
+        photo: photo || null,
         farmerId: req.user.userId,
       }
     });
