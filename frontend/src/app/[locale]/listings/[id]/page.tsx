@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { MapPin, User, MessageCircle, ArrowLeft, Loader2 } from 'lucide-react';
+import { MapPin, User, MessageCircle, ArrowLeft, Loader2, Trash2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -15,6 +15,7 @@ interface ListingDetails {
   status: string;
   createdAt: string;
   farmer: {
+    id: string;
     name: string;
     phone: string;
   };
@@ -29,6 +30,7 @@ export default function ListingDetailsPage({ params }: { params: { locale: strin
   
   const [orderQuantity, setOrderQuantity] = useState(1);
   const [ordering, setOrdering] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const fetchListing = async () => {
@@ -70,6 +72,19 @@ export default function ListingDetailsPage({ params }: { params: { locale: strin
       setError(err.response?.data?.error || 'Order failed');
     } finally {
       setOrdering(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this listing?')) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/listings/${listing!.id}`);
+      router.push(`/${params.locale}/dashboard`);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to delete listing');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -162,6 +177,15 @@ export default function ListingDetailsPage({ params }: { params: { locale: strin
             >
               <MessageCircle size={24} className="mr-3" /> Contact Farmer
             </Link>
+            {user?.role === 'FARMER' && user?.id === listing.farmer.id && (
+              <button 
+                onClick={handleDelete} disabled={deleting}
+                className="flex items-center justify-center w-full mt-4 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-lg py-4 rounded-2xl transition-all border border-red-200 hover:-translate-y-1 active:scale-95 disabled:opacity-50"
+              >
+                {deleting ? <Loader2 className="animate-spin mr-2" /> : <Trash2 size={24} className="mr-3" />}
+                {deleting ? 'Deleting...' : 'Delete Listing'}
+              </button>
+            )}
           </div>
         </div>
       </div>
