@@ -46,13 +46,19 @@ router.post('/webhook', async (req, res) => {
   const event = req.body;
 
   if (event.event === 'charge.success') {
-    const orderId = event.data.metadata.orderId;
-    
-    // Update order status to PAID
-    await prisma.order.update({
-      where: { id: orderId },
-      data: { status: 'PAID' }
-    });
+    const orderId = event?.data?.metadata?.orderId;
+    if (orderId) {
+      try {
+        await prisma.order.update({
+          where: { id: orderId },
+          data: { status: 'PAID' }
+        });
+      } catch (error) {
+        console.error('Webhook update failed:', error);
+      }
+    } else {
+      console.warn('Webhook received charge.success without orderId metadata');
+    }
   }
 
   res.sendStatus(200);

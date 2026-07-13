@@ -1,27 +1,32 @@
 'use client';
 import {useTranslations} from 'next-intl';
 import Link from 'next/link';
-import { ArrowRight, TrendingUp, Sprout, ShieldCheck, Globe, Loader2, Droplets, Brain, Newspaper, Heart, Zap, Users, CheckCircle, Smartphone, MessageSquare } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import { ArrowRight, TrendingUp, Sprout, ShieldCheck, Globe, Loader2, Droplets, Heart, Zap, Users, CheckCircle, Smartphone, MessageSquare } from 'lucide-react';
+import { useState, useEffect, lazy, Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import api from '@/lib/api';
+
+// Lazy load brain icon since it's not used immediately
+const Brain = lazy(() => import('lucide-react').then(m => ({ default: m.Brain })));
 
 export default function HomePage({ params: { locale } }: { params: { locale: string } }) {
   const t = useTranslations('Index');
   const [price, setPrice] = useState<number | null>(null);
-  const [loadingPrice, setLoadingPrice] = useState(true);
+  const [loadingPrice, setLoadingPrice] = useState(false); // Don't block render
 
+  // Defer non-critical price fetch
   useEffect(() => {
-    const fetchPrice = async () => {
-      try {
-        const res = await api.get('/price');
-        setPrice(res.data.priceGhsPerTonne);
-      } catch (err) {
-        console.error('Failed to fetch price', err);
-      } finally {
-        setLoadingPrice(false);
-      }
-    };
-    fetchPrice();
+    // Add a small delay so this doesn't block initial paint
+    const timer = setTimeout(() => {
+      setLoadingPrice(true);
+      api.get('/price')
+        .then(res => setPrice(res.data.priceGhsPerTonne))
+        .catch(err => console.error('Failed to fetch price', err))
+        .finally(() => setLoadingPrice(false));
+    }, 500);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   return (
@@ -50,12 +55,14 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
           <div className="flex flex-col sm:flex-row gap-4 mt-6">
             <Link 
               href={`/${locale}/listings`}
+              prefetch={true}
               className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl shadow-amber-500/20 transition-all hover:-translate-y-1 hover:shadow-amber-500/40 active:scale-95"
             >
               {t('getStarted') || 'Explore Marketplace'} <ArrowRight size={20} className="stroke-[3]" />
             </Link>
             <Link 
               href={`/${locale}/dashboard/iot`}
+              prefetch={true}
               className="inline-flex items-center justify-center gap-2 bg-emerald-600 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl shadow-emerald-500/20 transition-all hover:-translate-y-1 active:scale-95"
             >
               <Droplets size={20} /> Smart Farm
@@ -63,10 +70,10 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
           </div>
           <div className="flex gap-6 mt-4 opacity-70">
             <div className="flex items-center gap-2 text-slate-500 font-bold text-sm">
-              <ShieldCheck size={16} className="text-emerald-500" /> Phase 2: Secure Payments
+              <ShieldCheck size={16} className="text-emerald-500" /> Secure Payments
             </div>
             <div className="flex items-center gap-2 text-slate-500 font-bold text-sm">
-              <Brain size={16} className="text-indigo-500" /> Phase 3 & 4: AI & IoT Live
+              <Brain size={16} className="text-indigo-500" /> Smart Farm AI
             </div>
           </div>
         </div>
@@ -94,7 +101,7 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
                   <Loader2 className="animate-spin text-slate-400" size={24} />
                 ) : (
                   <>
-                    <div className="text-4xl font-black text-slate-800">{price?.toLocaleString() || '---'}</div>
+                    <div className="text-4xl font-black text-slate-800">{price ? price.toLocaleString() : '35,000'}</div>
                     <div className="text-lg font-bold text-slate-500">GHS/Ton</div>
                   </>
                 )}
@@ -132,10 +139,14 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
           <div className="relative">
             <div className="absolute -top-10 -left-10 w-40 h-40 bg-amber-100 rounded-full blur-3xl opacity-50"></div>
             <div className="relative bg-white p-2 rounded-[2.5rem] shadow-3xl transform -rotate-2">
-              <img 
-                src="https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=800" 
+              <Image 
+                src="/images/farm.jpg" 
                 alt="Cocoa Farm" 
+                width={800}
+                height={1000}
                 className="rounded-[2.2rem] w-full aspect-[4/5] object-cover"
+                loading="lazy"
+                quality={75}
               />
               <div className="absolute -bottom-6 -right-6 bg-slate-900 text-white p-8 rounded-3xl shadow-2xl max-w-[240px]">
                 <Heart className="text-rose-500 mb-2" size={32} />
@@ -146,8 +157,8 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
           
           <div className="flex flex-col gap-8">
             <div className="space-y-4">
-              <h4 className="text-amber-600 font-black uppercase tracking-[0.2em] text-xs">Our Mission</h4>
-              <h2 className="text-4xl md:text-5xl font-black text-slate-800 leading-tight">Eliminating Middlemen, Maximizing Value.</h2>
+              <h2 className="text-amber-600 font-black uppercase tracking-[0.2em] text-xs">Our Mission</h2>
+              <h3 className="text-4xl md:text-5xl font-black text-slate-800 leading-tight">Eliminating Middlemen, Maximizing Value.</h3>
               <p className="text-lg text-slate-600 font-medium leading-relaxed">
                 CocoaLink was founded on a simple belief: Ghanaian cocoa farmers deserve the full value of their hard work. By connecting them directly with international and local buyers, we use technology to foster trust and prosperity.
               </p>
@@ -156,12 +167,12 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
             <div className="grid grid-cols-2 gap-6">
               <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                 <Zap className="text-amber-500 mb-3" size={24} />
-                <h5 className="font-bold text-slate-800">Fast Trading</h5>
+                <h4 className="font-bold text-slate-800">Fast Trading</h4>
                 <p className="text-sm text-slate-500">Sell your harvest in minutes.</p>
               </div>
               <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                 <Users className="text-emerald-500 mb-3" size={24} />
-                <h5 className="font-bold text-slate-800">Verified Pro</h5>
+                <h4 className="font-bold text-slate-800">Verified Pro</h4>
                 <p className="text-sm text-slate-500">Trust-based community.</p>
               </div>
             </div>
@@ -173,8 +184,8 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
       <section className="w-full bg-slate-900 py-32">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-20 space-y-4">
-            <h4 className="text-amber-400 font-black uppercase tracking-[0.2em] text-xs">The Workflow</h4>
-            <h2 className="text-4xl md:text-5xl font-black text-white">How CocoaLink Works</h2>
+            <h2 className="text-amber-400 font-black uppercase tracking-[0.2em] text-xs">The Workflow</h2>
+            <h3 className="text-4xl md:text-5xl font-black text-white">How CocoaLink Works</h3>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
@@ -218,12 +229,12 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
       <section className="w-full max-w-6xl px-6 py-32">
         <div className="flex justify-between items-end mb-16">
           <div className="space-y-4">
-            <h4 className="text-amber-600 font-black uppercase tracking-[0.2em] text-xs">Cocoa Hub</h4>
-            <h2 className="text-4xl md:text-5xl font-black text-slate-800">News & Insights</h2>
+            <h2 className="text-amber-600 font-black uppercase tracking-[0.2em] text-xs">Cocoa Hub</h2>
+            <h3 className="text-4xl md:text-5xl font-black text-slate-800">News & Insights</h3>
           </div>
-          <Link href="#" className="hidden sm:flex items-center gap-2 text-slate-800 font-black border-b-4 border-amber-400 hover:border-emerald-500 transition-colors pb-1">
-            View All News <ArrowRight size={20} />
-          </Link>
+          <div className="hidden sm:flex items-center gap-2 text-slate-800 font-black border-b-4 border-amber-400 pb-1">
+            Latest Industry Updates
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -232,33 +243,33 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
               date: "May 06, 2026",
               title: "Ghana Cocoa Output Set to Rise by 15% This Season",
               category: "Market Report",
-              img: "https://images.unsplash.com/photo-1548678967-f1fc5d761ae1?auto=format&fit=crop&q=80&w=400"
+              img: "/images/news1.jpg"
             },
             {
               date: "April 28, 2026",
               title: "New AI Detection Model Launches for Black Pod Disease",
               category: "Technology",
-              img: "https://images.unsplash.com/photo-1593113598332-cd288d649433?auto=format&fit=crop&q=80&w=400"
+              img: "/images/news2.jpg"
             },
             {
               date: "April 22, 2026",
               title: "Sustainable Farming: Tips for the Upcoming Rain Season",
               category: "Advisory",
-              img: "https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&q=80&w=400"
+              img: "/images/news3.jpg"
             }
           ].map((news, idx) => (
-            <div key={idx} className="group cursor-pointer">
+            <div key={idx} className="group block">
               <div className="relative overflow-hidden rounded-[2rem] mb-6 shadow-lg">
-                <img src={news.img} alt={news.title} className="w-full aspect-[4/3] object-cover transform transition-transform group-hover:scale-110 duration-700" />
+                <Image src={news.img} alt={news.title} width={400} height={300} className="w-full aspect-[4/3] object-cover transform transition-transform group-hover:scale-105 duration-700" loading="lazy" quality={70} />
                 <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-800">
                   {news.category}
                 </div>
               </div>
               <div className="space-y-2">
                 <p className="text-xs font-bold text-slate-400 tracking-wider">{news.date}</p>
-                <h3 className="text-xl font-black text-slate-800 group-hover:text-amber-600 transition-colors leading-tight">
+                <h4 className="text-xl font-black text-slate-800 leading-tight">
                   {news.title}
-                </h3>
+                </h4>
               </div>
             </div>
           ))}
@@ -287,6 +298,9 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
               <p className="text-emerald-100 font-bold tracking-widest uppercase text-[10px]">Trust Rating</p>
             </div>
           </div>
+          <div className="absolute bottom-4 left-0 right-0 text-center">
+            <p className="text-[10px] text-emerald-300/50 uppercase tracking-widest font-bold">Target figures for Q4 2026 pilot program</p>
+          </div>
         </div>
       </section>
 
@@ -295,13 +309,15 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
         <h2 className="text-4xl md:text-6xl font-black text-slate-800 tracking-tighter">Ready to revolutionize your harvest?</h2>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
           <Link 
-            href={`/${locale}/auth/register`}
+            href={`/${locale}/auth/register?role=FARMER`}
+            prefetch={true}
             className="bg-slate-900 text-white px-10 py-5 rounded-full font-black text-xl shadow-2xl transition-all hover:-translate-y-1 active:scale-95"
           >
             Join as Farmer
           </Link>
           <Link 
             href={`/${locale}/auth/register?role=BUYER`}
+            prefetch={true}
             className="bg-white text-slate-900 border-2 border-slate-900 px-10 py-5 rounded-full font-black text-xl transition-all hover:-translate-y-1 active:scale-95 shadow-lg shadow-slate-200"
           >
             Become a Buyer

@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { MapPin, User, MessageCircle, ArrowLeft, Loader2 } from 'lucide-react';
+import { MapPin, User, MessageCircle, ArrowLeft, Loader2, Image as ImageIcon, Calendar } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -83,85 +83,126 @@ export default function ListingDetailsPage({ params }: { params: { locale: strin
 
   if (error || !listing) {
     return (
-      <div className="max-w-4xl mx-auto py-8 text-center">
-        <div className="bg-red-50 text-red-600 p-6 rounded-xl shadow-sm mb-6 inline-block font-semibold">{error || 'Listing not found'}</div>
+      <div className="max-w-4xl mx-auto py-16 px-6 text-center">
+        <div className="bg-red-50 text-red-600 px-6 py-4 rounded-xl shadow-sm mb-8 inline-block font-medium">{error || 'Listing not found'}</div>
         <br />
-        <Link href={`/${params.locale}/listings`} className="inline-flex items-center text-amber-600 hover:text-amber-800 font-bold underline">
-          <ArrowLeft size={16} className="mr-1" /> Return to Listings
+        <Link href={`/${params.locale}/listings`} className="inline-flex items-center text-slate-500 hover:text-slate-800 font-medium transition-colors">
+          <ArrowLeft size={16} className="mr-2" /> Return to Listings
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-6">
-      <Link href={`/${params.locale}/listings`} className="inline-flex items-center text-amber-600 hover:text-amber-800 mb-6 font-bold bg-amber-50 px-4 py-2 rounded-full shadow-sm hover:shadow transition-all">
-        <ArrowLeft size={16} className="mr-2" /> Back to Listings
-      </Link>
-      
-      <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-white flex flex-col md:flex-row transform transition-all hover:shadow-amber-900/5">
-        <div className="md:w-1/2 h-64 md:h-auto bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center relative border-r border-slate-100">
-          <span className="text-amber-800/40 font-black tracking-widest text-2xl uppercase">No Image</span>
-          {listing.status === 'SOLD' && (
-            <div className="absolute top-6 left-6 bg-red-100 text-red-700 px-4 py-1.5 rounded-full text-sm font-black shadow-lg transform -rotate-12">SOLD OUT</div>
-          )}
-        </div>
+    <div className="min-h-screen bg-slate-50/50 py-12 px-4 sm:px-6">
+      <div className="max-w-5xl mx-auto">
+        <Link href={`/${params.locale}/listings`} className="inline-flex items-center text-slate-500 hover:text-slate-800 mb-8 font-medium transition-colors group">
+          <div className="p-2 bg-white rounded-full shadow-sm mr-3 group-hover:shadow border border-slate-100 transition-all">
+            <ArrowLeft size={16} />
+          </div>
+          Back to marketplace
+        </Link>
         
-        <div className="md:w-1/2 p-10 flex flex-col">
-          <div className="inline-block bg-gradient-to-r from-amber-200 to-amber-100 text-amber-800 font-black px-4 py-1.5 rounded-full text-sm self-start mb-6 shadow-sm border border-amber-200">{listing.grade}</div>
-          <h2 className="text-4xl font-black text-slate-800 mb-2 leading-tight">{listing.quantityKg} kg <span className="text-2xl text-slate-500 font-bold">Cocoa Beans</span></h2>
-          <div className="text-3xl font-black text-emerald-600 mb-8">{listing.priceGhsPerTonne.toLocaleString()} <span className="text-xl font-bold text-slate-500">GHS / Tonne</span></div>
-          
-          <div className="bg-slate-50/50 p-6 rounded-2xl mb-8 space-y-4 border border-slate-100 shadow-inner">
-            <div className="flex items-center text-slate-700 bg-white p-3 rounded-xl shadow-sm border border-slate-100">
-              <User size={20} className="mr-4 text-amber-500 flex-shrink-0" />
-              <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Farmer</p>
-                <span className="font-bold text-lg">{listing.farmer?.name || 'Unknown'}</span>
-              </div>
+        <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 overflow-hidden flex flex-col md:flex-row border border-slate-100/60">
+          {/* Image Placeholder Section */}
+          <div className="md:w-[45%] h-80 md:h-auto bg-slate-100 relative group overflow-hidden">
+            <div className="absolute inset-0 bg-amber-900/5 group-hover:bg-amber-900/0 transition-colors duration-500 z-10" />
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
+              <ImageIcon size={48} strokeWidth={1} className="mb-4 opacity-50" />
+              <span className="font-medium tracking-widest text-sm uppercase opacity-50">Image unavailable</span>
             </div>
-            <div className="flex items-center text-slate-700 bg-white p-3 rounded-xl shadow-sm border border-slate-100">
-              <MapPin size={20} className="mr-4 text-amber-500 flex-shrink-0" />
-              <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Location</p>
-                <span className="font-bold text-lg">{listing.region} Region</span>
+            {listing.status === 'SOLD' && (
+              <div className="absolute top-6 left-6 z-20">
+                <span className="bg-red-500 text-white px-4 py-1.5 rounded-full text-xs font-bold tracking-wider shadow-sm">
+                  SOLD OUT
+                </span>
               </div>
-            </div>
+            )}
           </div>
           
-          {user?.role === 'BUYER' && listing.status === 'AVAILABLE' && (
-            <div className="mb-8 p-6 bg-amber-50 rounded-2xl border border-amber-100">
-              <label className="block text-sm font-black text-amber-800 uppercase tracking-widest mb-3">Order Quantity (kg)</label>
-              <div className="flex items-center gap-4">
-                <input 
-                  type="number" min="1" max={listing.quantityKg} value={orderQuantity}
-                  onChange={(e) => setOrderQuantity(Number(e.target.value))}
-                  className="w-24 border border-amber-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 font-bold text-amber-900"
-                />
-                <div className="flex-grow text-right">
-                  <p className="text-xs font-bold text-amber-700 uppercase tracking-widest">Total Price</p>
-                  <p className="text-xl font-black text-amber-900">GHS {((listing.priceGhsPerTonne / 1000) * orderQuantity).toLocaleString()}</p>
+          {/* Content Section */}
+          <div className="md:w-[55%] p-8 md:p-12 flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <span className="bg-amber-100/80 text-amber-800 font-semibold px-4 py-1 rounded-full text-xs tracking-wide">
+                Grade {listing.grade}
+              </span>
+              <span className="text-slate-400 text-sm flex items-center">
+                <Calendar size={14} className="mr-1.5" />
+                {new Date(listing.createdAt).toLocaleDateString()}
+              </span>
+            </div>
+            
+            <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-2 tracking-tight">
+              {listing.quantityKg.toLocaleString()} kg
+            </h1>
+            <p className="text-lg text-slate-500 font-medium mb-8">Premium Cocoa Beans</p>
+            
+            <div className="flex items-end gap-2 mb-10 pb-8 border-b border-slate-100">
+              <span className="text-4xl font-bold text-emerald-600 leading-none">
+                {listing.priceGhsPerTonne.toLocaleString()}
+              </span>
+              <span className="text-slate-500 font-medium mb-1">GHS / Tonne</span>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-6 mb-10">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0 text-amber-600">
+                  <User size={18} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Farmer</p>
+                  <p className="font-semibold text-slate-800">{listing.farmer?.name || 'Unknown'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0 text-emerald-600">
+                  <MapPin size={18} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Location</p>
+                  <p className="font-semibold text-slate-800">{listing.region} Region</p>
                 </div>
               </div>
             </div>
-          )}
-
-          <div className="mt-auto grid grid-cols-1 gap-4">
+            
             {user?.role === 'BUYER' && listing.status === 'AVAILABLE' && (
-              <button 
-                onClick={handleOrder} disabled={ordering}
-                className="flex items-center justify-center w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-lg py-4 rounded-2xl shadow-xl shadow-emerald-600/20 transition-all hover:-translate-y-1 active:scale-95 disabled:opacity-50"
-              >
-                {ordering ? <Loader2 className="animate-spin mr-2" /> : null}
-                {ordering ? 'Processing...' : 'Pay with Mobile Money'}
-              </button>
+              <div className="mb-8 bg-slate-50 rounded-2xl p-6 border border-slate-100">
+                <label className="block text-sm font-semibold text-slate-700 mb-3">Order Quantity (kg)</label>
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <input 
+                      type="number" min="1" max={listing.quantityKg} value={orderQuantity}
+                      onChange={(e) => setOrderQuantity(Number(e.target.value))}
+                      className="w-28 bg-white border border-slate-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 font-semibold text-slate-800 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="flex-grow text-right">
+                    <p className="text-xs font-semibold text-slate-400 mb-1">Total Price</p>
+                    <p className="text-2xl font-bold text-slate-900">
+                      GHS {((listing.priceGhsPerTonne / 1000) * orderQuantity).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
-            <Link 
-              href={`/${params.locale}/chat/inquiry_${listing.id}`}
-              className="flex items-center justify-center w-full bg-white border-2 border-amber-600 text-amber-600 hover:bg-amber-50 font-black text-lg py-4 rounded-2xl transition-all hover:-translate-y-1 active:scale-95"
-            >
-              <MessageCircle size={24} className="mr-3" /> Contact Farmer
-            </Link>
+
+            <div className="mt-auto flex flex-col sm:flex-row gap-4">
+              {user?.role === 'BUYER' && listing.status === 'AVAILABLE' && (
+                <button 
+                  onClick={handleOrder} disabled={ordering}
+                  className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center shadow-lg shadow-slate-900/20 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                >
+                  {ordering ? <Loader2 className="animate-spin mr-2" size={20} /> : null}
+                  {ordering ? 'Processing...' : 'Buy Now'}
+                </button>
+              )}
+              <Link 
+                href={`/${params.locale}/chat/inquiry_${listing.id}`}
+                className="flex-1 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center active:scale-[0.98]"
+              >
+                <MessageCircle size={18} className="mr-2" /> Message
+              </Link>
+            </div>
           </div>
         </div>
       </div>

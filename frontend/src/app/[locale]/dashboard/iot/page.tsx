@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 import { useState, useEffect } from 'react';
 import { db } from '@/firebase';
 import { ref, onValue } from 'firebase/database';
@@ -6,10 +7,10 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useRouter } from 'next/navigation';
 import { Droplets, Thermometer, Wind, ArrowLeft, Loader2, AlertTriangle, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import api from '@/lib/api';
 
-export default function IoTDashboard({ params: { locale } }: { params: { locale: string } }) {
+function IoTDashboardContent({ params: { locale } }: { params: { locale: string } }) {
   const { user, isAuthenticated } = useAuthStore();
   const router = useRouter();
   const [currentData, setCurrentData] = useState<any>(null);
@@ -23,11 +24,14 @@ export default function IoTDashboard({ params: { locale } }: { params: { locale:
     }
 
     // 1. Listen for Live Updates from Firebase
-    const liveRef = ref(db, `telemetry/${user?.id}/current`);
-    const unsubscribeLive = onValue(liveRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) setCurrentData(data);
-    });
+    let unsubscribeLive = () => {};
+    if (db) {
+      const liveRef = ref(db, `telemetry/${user?.id}/current`);
+      unsubscribeLive = onValue(liveRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) setCurrentData(data);
+      });
+    }
 
     // 2. Fetch Historical Data from Backend
     const fetchHistory = async () => {
@@ -137,3 +141,5 @@ export default function IoTDashboard({ params: { locale } }: { params: { locale:
     </div>
   );
 }
+
+export default dynamic(() => Promise.resolve(IoTDashboardContent), { ssr: false });

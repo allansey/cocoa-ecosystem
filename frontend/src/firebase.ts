@@ -13,8 +13,15 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Initialize Firebase
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getDatabase(app);
+// Initialize Firebase gracefully
+let app;
+let db: ReturnType<typeof getDatabase> | null = null;
+
+try {
+  app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  db = getDatabase(app);
+} catch (error) {
+  console.warn("Firebase initialization failed. Check environment variables.");
+}
 
 export { app, db };

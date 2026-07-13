@@ -29,6 +29,12 @@ export default function ChatPage({ params }: { params: { locale: string, inquiry
       return;
     }
 
+    if (!db) {
+      console.warn("Firebase is not configured. Chat is unavailable.");
+      setLoading(false);
+      return;
+    }
+
     const chatRef = ref(db, `chats/${params.inquiryId}`);
     const unsubscribe = onValue(chatRef, (snapshot) => {
       const data = snapshot.val();
@@ -53,7 +59,7 @@ export default function ChatPage({ params }: { params: { locale: string, inquiry
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !user) return;
+    if (!newMessage.trim() || !user || !db) return;
 
     const chatRef = ref(db, `chats/${params.inquiryId}`);
     try {

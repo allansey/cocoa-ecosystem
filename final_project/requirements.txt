@@ -1,0 +1,16 @@
+# Image recognition server
+ultralytics>=8.0.0
+pillow>=10.0.0
+onnxruntime>=1.16.0
+
+# Both servers
+flask>=3.0.0
+flask-cors>=4.0.0
+requests>=2.31.0
+
+# Voice + AI server
+ghana-nlp>=0.1.5
+google-genai>=0.3.0
+pydub>=0.25.1
+python-dotenv>=1.0.0
+# Note: pydub also requires ffmpeg installed on the system (not via pip)

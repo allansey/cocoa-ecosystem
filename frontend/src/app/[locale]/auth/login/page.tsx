@@ -58,6 +58,11 @@ export default function LoginPage({ params: { locale } }: { params: { locale: st
             value={password} onChange={e => setPassword(e.target.value)} required 
           />
         </div>
+        <div className="flex justify-end">
+          <Link href={`/${locale}/auth/forgot-password`} className="text-sm text-amber-600 font-medium hover:underline">
+            Forgot password?
+          </Link>
+        </div>
         <button type="submit" className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-lg mt-4 transition-colors">
           {t('login')}
         </button>

@@ -88,6 +88,22 @@ export default function CreateListingPage({ params: { locale } }: { params: { lo
           </div>
 
           <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1">Upload Cocoa Images</label>
+            <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center hover:bg-slate-50 transition-colors cursor-pointer group">
+              <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+              </div>
+              <h4 className="text-lg font-black text-slate-700">Drag & Drop images here</h4>
+              <p className="text-sm text-slate-500 font-medium mt-1">or click to browse from your device</p>
+              
+              <div className="mt-6 flex items-center justify-center gap-2 text-xs font-bold bg-indigo-50 text-indigo-700 py-2 px-4 rounded-full mx-auto w-max border border-indigo-100">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                AI Auto-Grading ready upon upload
+              </div>
+            </div>
+          </div>
+
+          <div>
             <label className="block text-sm font-bold text-slate-700 mb-1">Region</label>
             <select 
               className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-amber-500 bg-white shadow-sm"

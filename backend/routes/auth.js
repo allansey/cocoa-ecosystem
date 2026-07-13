@@ -26,7 +26,7 @@ router.post('/register', async (req, res) => {
     });
 
     const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET || 'supersecretjwtkey', { expiresIn: '7d' });
-    res.status(201).json({ token, user: { id: user.id, email: user.email, role: user.role, name: user.name } });
+    res.status(201).json({ token, user: { id: user.id, email: user.email, role: user.role, name: user.name, phone: user.phone } });
   } catch (error) {
     console.error('Registration Error:', error);
     res.status(500).json({ error: 'Server error during registration.' });
@@ -43,7 +43,7 @@ router.post('/login', async (req, res) => {
     if (!validPassword) return res.status(400).json({ error: 'Invalid email or password.' });
 
     const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET || 'supersecretjwtkey', { expiresIn: '7d' });
-    res.json({ token, user: { id: user.id, email: user.email, role: user.role, name: user.name } });
+    res.json({ token, user: { id: user.id, email: user.email, role: user.role, name: user.name, phone: user.phone } });
   } catch (error) {
     res.status(500).json({ error: 'Server error during login.' });
   }

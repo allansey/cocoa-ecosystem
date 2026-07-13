@@ -1,0 +1,274 @@
+/* App-wide styling */
+.app-root {
+  background: radial-gradient(circle at 10% 20%, rgb(15, 37, 24) 0%, rgb(7, 19, 13) 90.1%);
+  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  color: #f8f9fa;
+  overflow-x: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+/* Glass decorative background blob */
+.glass-bg {
+  position: absolute;
+  top: 10%;
+  left: 25%;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(40, 167, 69, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+  z-index: -1;
+  pointer-events: none;
+  filter: blur(40px);
+}
+
+/* Premium Card Styles */
+.glass-card {
+  background: rgba(18, 30, 23, 0.45) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.border-glow:hover {
+  border-color: rgba(255, 193, 7, 0.3) !important;
+  box-shadow: 0 0 25px rgba(255, 193, 7, 0.1) !important;
+}
+
+/* Steps badges and decorations */
+.step-num {
+  width: 28px;
+  height: 28px;
+  font-size: 0.9rem;
+}
+
+/* Interactive Tabs */
+.active-tab {
+  background: rgba(255, 193, 7, 0.15) !important;
+  border: 1px solid rgba(255, 193, 7, 0.4) !important;
+  font-weight: 600;
+  border-radius: 6px;
+}
+
+/* Sample Pod buttons */
+.sample-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+}
+
+.sample-btn:hover {
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sample-btn.healthy:hover {
+  border-color: #28a745;
+  box-shadow: 0 0 15px rgba(40, 167, 69, 0.2);
+}
+
+.sample-btn.black-rot:hover {
+  border-color: #8b4513;
+  box-shadow: 0 0 15px rgba(139, 69, 19, 0.2);
+}
+
+.sample-btn.frosty-rot:hover {
+  border-color: #dcdcdc;
+  box-shadow: 0 0 15px rgba(220, 220, 220, 0.2);
+}
+
+/* Upload dropzone */
+.upload-dropzone {
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.upload-dropzone:hover {
+  border-color: #ffc107 !important;
+  background: rgba(255, 193, 7, 0.03) !important;
+}
+
+/* Recording Mic Button & Pulse animation */
+.mic-button {
+  border: none;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.mic-button:hover {
+  transform: scale(1.05);
+}
+
+.mic-button.recording {
+  animation: pulse-border 1.5s infinite;
+}
+
+.pulse-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  opacity: 0.4;
+  animation: pulse 1.8s infinite ease-out;
+  pointer-events: none;
+}
+
+.pulse-ring-outer {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
+  border-radius: 50%;
+  opacity: 0.2;
+  animation: pulse 2.4s infinite ease-out;
+  pointer-events: none;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+@keyframes pulse-border {
+  0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+  70% { box-shadow: 0 0 0 15px rgba(220, 53, 69, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+}
+
+/* Custom CSS Audio Waveform */
+.waveform {
+  height: 24px;
+  opacity: 0.1;
+  transition: opacity 0.3s ease;
+}
+
+.waveform.active {
+  opacity: 1;
+}
+
+.waveform .bar {
+  width: 4px;
+  height: 100%;
+  background-color: #ffc107;
+  border-radius: 2px;
+  animation: bounce 1s infinite alternate ease-in-out;
+}
+
+/* Staggered animation for wave bars */
+.waveform .bar:nth-child(2) { animation-delay: 0.15s; }
+.waveform .bar:nth-child(3) { animation-delay: 0.3s; }
+.waveform .bar:nth-child(4) { animation-delay: 0.45s; }
+.waveform .bar:nth-child(5) { animation-delay: 0.25s; }
+.waveform .bar:nth-child(6) { animation-delay: 0.35s; }
+.waveform .bar:nth-child(7) { animation-delay: 0.1s; }
+.waveform .bar:nth-child(8) { animation-delay: 0.5s; }
+
+@keyframes bounce {
+  0% { transform: scaleY(0.2); }
+  100% { transform: scaleY(1); }
+}
+
+/* Pipeline steps list */
+.progress-steps .step {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.progress-steps .step.success {
+  background: rgba(40, 167, 69, 0.05);
+  border-color: rgba(40, 167, 69, 0.15);
+}
+
+.progress-steps .step.active {
+  background: rgba(255, 193, 7, 0.05);
+  border-color: rgba(255, 193, 7, 0.2);
+}
+
+/* Custom layout details */
+.max-width-xs {
+  max-width: 320px;
+}
+.max-width-sm {
+  max-width: 480px;
+}
+.max-width-lg {
+  max-width: 1200px;
+}
+
+/* Toast alert */
+.toast-alert {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  padding: 12px 24px;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  animation: slide-in 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+.toast-success {
+  background-color: #28a745;
+}
+
+.toast-error {
+  background-color: #dc3545;
+}
+
+.toast-neutral {
+  background-color: #6c757d;
+}
+
+@keyframes slide-in {
+  0% { transform: translateY(-20px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+/* Audio Player custom overlay style */
+audio::-webkit-media-controls-panel {
+  background-color: rgba(33, 37, 41, 0.8);
+}
+audio::-webkit-media-controls-play-button {
+  background-color: #ffc107;
+  border-radius: 50%;
+}
+
+/* Farmer response bubbles */
+.bubble {
+  border-left: 3px solid rgba(255, 193, 7, 0.4);
+}
+
+/* Advisor reply card */
+.advisor-reply {
+  background: rgba(255, 193, 7, 0.03);
+}
+
+/* Server status dots */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.status-dot.online {
+  background-color: #28a745;
+  box-shadow: 0 0 6px rgba(40, 167, 69, 0.6);
+}
+.status-dot.offline {
+  background-color: #dc3545;
+  box-shadow: 0 0 6px rgba(220, 53, 69, 0.6);
+}
+
