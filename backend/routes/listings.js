@@ -153,4 +153,24 @@ router.put('/:id', [authMiddleware, farmerRoleMiddleware], async (req, res) => {
   }
 });
 
+// DELETE listing (Farmers only, must own the listing)
+router.delete('/:id', [authMiddleware, farmerRoleMiddleware], async (req, res) => {
+  try {
+    const listingId = req.params.id;
+
+    const listing = await prisma.listing.findUnique({ where: { id: listingId } });
+    if (!listing) return res.status(404).json({ error: 'Listing not found.' });
+    if (listing.farmerId !== req.user.userId) return res.status(403).json({ error: 'Not authorized to delete this listing.' });
+
+    await prisma.listing.delete({
+      where: { id: listingId }
+    });
+
+    res.json({ message: 'Listing deleted successfully.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error deleting listing.' });
+  }
+});
+
 module.exports = router;
