@@ -3,8 +3,17 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  chatId     String
+  senderId   String
+  senderName String
+  text       String
+  createdAt  DateTime @default(now())
 }
 
 model User {
@@ -39,21 +48,37 @@ model Listing {
 }
 
 model Order {
-  id            String      @id @default(uuid())
+  id            String          @id @default(uuid())
   listingId     String
   buyerId       String
   farmerId      String
   quantityKg    Float
   totalAmount   Float
-  status        String      @default("PENDING") // PENDING, PAID, SHIPPED, COMPLETED, CANCELLED
-  paymentMethod String      @default("MOMO") // MOMO, CARD, CASH
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  proposedPrice Float?
+  status        String          @default("PENDING_APPROVAL") // PENDING_APPROVAL, ACCEPTED, PAYMENT_PENDING, PAID, IN_TRANSIT, DELIVERED, COMPLETED, CANCELLED, DISPUTED
+  paymentMethod String          @default("COD") // MOMO, CARD, CASH, COD
+  chatId        String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
-  listing       Listing     @relation(fields: [listingId], references: [id])
-  buyer         User        @relation("BuyerOrders", fields: [buyerId], references: [id])
-  farmer        User        @relation("FarmerSales", fields: [farmerId], references: [id])
+  listing       Listing         @relation(fields: [listingId], references: [id])
+  buyer         User            @relation("BuyerOrders", fields: [buyerId], references: [id])
+  farmer        User            @relation("FarmerSales", fields: [farmerId], references: [id])
   review        Review?
+  activities    OrderActivity[]
+}
+
+model OrderActivity {
+  id        String   @id @default(uuid())
+  orderId   String
+  actorId   String
+  actorName String
+  actorRole String
+  action    String
+  note      String?
+  createdAt DateTime @default(now())
+
+  order     Order    @relation(fields: [orderId], references: [id])
 }
 
 model Review {

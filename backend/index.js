@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+const { PrismaClient } = require('@prisma/client');
 const compression = require('compression');
 
 if (!process.env.DATABASE_URL) {
@@ -15,11 +17,15 @@ const orderRoutes = require('./routes/orders');
 const paymentRoutes = require('./routes/payment');
 const reviewRoutes = require('./routes/reviews');
 const iotRoutes = require('./routes/iot');
+const chatRoutes = require('./routes/chat');
 
 const app = express();
 
 // Enable compression for responses
 app.use(compression());
+
+// Serve static files from the uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -58,6 +64,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/iot', iotRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

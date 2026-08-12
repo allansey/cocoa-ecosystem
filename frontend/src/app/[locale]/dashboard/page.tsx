@@ -92,6 +92,20 @@ export default function DashboardPage({ params: { locale } }: { params: { locale
     }
   };
 
+  const handleDeleteListing = async (listingId: string) => {
+    if (!confirm('Are you sure you want to delete this listing? This cannot be undone.')) return;
+    setUpdating(listingId);
+    try {
+      await api.delete(`/listings/${listingId}`);
+      setListings(listings.filter(l => l.id !== listingId));
+    } catch (err: any) {
+      console.error('Failed to delete listing', err);
+      alert(err.response?.data?.error || 'Failed to delete listing.');
+    } finally {
+      setUpdating(null);
+    }
+  };
+
   if (!isAuthenticated || !user) return null;
 
   const totalRevenue = orders.filter(o => o.status !== 'PENDING' && o.status !== 'CANCELLED').reduce((sum, o) => sum + o.totalAmount, 0);
@@ -257,11 +271,14 @@ export default function DashboardPage({ params: { locale } }: { params: { locale
                       <div className="flex items-center gap-4">
                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
                           order.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-600' :
-                          order.status === 'SHIPPED' ? 'bg-blue-100 text-blue-600' :
+                          order.status === 'IN_TRANSIT' ? 'bg-blue-100 text-blue-600' :
+                          order.status === 'DELIVERED' ? 'bg-teal-100 text-teal-600' :
                           order.status === 'PAID' ? 'bg-indigo-100 text-indigo-600' :
+                          order.status === 'DISPUTED' ? 'bg-red-100 text-red-500' :
+                          order.status === 'CANCELLED' ? 'bg-slate-100 text-slate-400' :
                           'bg-amber-100 text-amber-600'
                         }`}>
-                          {order.status === 'COMPLETED' ? <CheckCircle2 size={24} /> : order.status === 'SHIPPED' ? <Truck size={24} /> : <Clock size={24} />}
+                          {order.status === 'COMPLETED' ? <CheckCircle2 size={24} /> : order.status === 'IN_TRANSIT' || order.status === 'DELIVERED' ? <Truck size={24} /> : <Clock size={24} />}
                         </div>
                         <div>
                           <h4 className="font-black text-slate-800">{order.listing.grade} Cocoa - {order.quantityKg}kg</h4>
@@ -274,25 +291,28 @@ export default function DashboardPage({ params: { locale } }: { params: { locale
                         <span className="text-lg font-black text-slate-900">GHS {order.totalAmount.toLocaleString()}</span>
                         <div className="flex items-center gap-2">
                           <span className={`text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-tighter ${
-                            order.status === 'COMPLETED' ? 'bg-emerald-500 text-white' : 
-                            order.status === 'SHIPPED' ? 'bg-blue-500 text-white' : 
-                            order.status === 'PAID' ? 'bg-indigo-500 text-white' : 
+                            order.status === 'COMPLETED' ? 'bg-emerald-500 text-white' :
+                            order.status === 'IN_TRANSIT' ? 'bg-blue-500 text-white' :
+                            order.status === 'DELIVERED' ? 'bg-teal-500 text-white' :
+                            order.status === 'PAID' ? 'bg-indigo-500 text-white' :
+                            order.status === 'DISPUTED' ? 'bg-red-500 text-white' :
+                            order.status === 'CANCELLED' ? 'bg-slate-400 text-white' :
                             'bg-slate-200 text-slate-600'
                           }`}>
-                            {order.status}
+                            {order.status.replace(/_/g, ' ')}
                           </span>
                           
                           {/* Order Actions */}
                           {user.role === 'FARMER' && order.status === 'PAID' && (
                             <button 
                               disabled={updating === order.id}
-                              onClick={() => handleUpdateOrderStatus(order.id, 'SHIPPED')}
+                              onClick={() => handleUpdateOrderStatus(order.id, 'IN_TRANSIT')}
                               className="text-xs font-bold bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1 rounded-md hover:bg-blue-100 disabled:opacity-50"
                             >
-                              {updating === order.id ? 'Updating...' : 'Mark Shipped'}
+                              {updating === order.id ? 'Updating...' : 'Mark Dispatched'}
                             </button>
                           )}
-                          {user.role === 'BUYER' && order.status === 'SHIPPED' && (
+                          {user.role === 'BUYER' && order.status === 'IN_TRANSIT' && (
                             <button 
                               disabled={updating === order.id}
                               onClick={() => handleUpdateOrderStatus(order.id, 'COMPLETED')}
@@ -301,6 +321,12 @@ export default function DashboardPage({ params: { locale } }: { params: { locale
                               {updating === order.id ? 'Updating...' : 'Confirm Delivery'}
                             </button>
                           )}
+                          <Link
+                            href={`/${locale}/orders/${order.id}`}
+                            className="text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 rounded-md hover:bg-amber-100 flex items-center gap-1"
+                          >
+                            View
+                          </Link>
                         </div>
                       </div>
                     </div>
@@ -355,6 +381,13 @@ export default function DashboardPage({ params: { locale } }: { params: { locale
                               {updating === listing.id ? 'Updating...' : 'Mark Sold'}
                             </button>
                           )}
+                          <button 
+                            disabled={updating === listing.id}
+                            onClick={() => handleDeleteListing(listing.id)}
+                            className="text-xs font-bold bg-red-50 text-red-600 border border-red-200 px-3 py-1 rounded-md hover:bg-red-100 disabled:opacity-50"
+                          >
+                            {updating === listing.id ? '...' : 'Delete'}
+                          </button>
                         </div>
                       </div>
                     </div>

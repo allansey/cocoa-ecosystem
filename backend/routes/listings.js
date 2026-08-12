@@ -1,6 +1,19 @@
 const express = require('express');
 const prisma = require('../prismaClient');
 const { authMiddleware, farmerRoleMiddleware } = require('../middleware/auth');
+const multer = require('multer');
+const path = require('path');
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/')
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage: storage });
 
 const router = express.Router();
 
@@ -100,9 +113,16 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST new listing (Farmers only)
-router.post('/', [authMiddleware, farmerRoleMiddleware], async (req, res) => {
+router.post('/', [authMiddleware, farmerRoleMiddleware, upload.single('photo')], async (req, res) => {
   try {
-    const { grade, quantityKg, priceGhsPerTonne, region, photo } = req.body;
+    const { grade, quantityKg, priceGhsPerTonne, region } = req.body;
+    
+    let photoUrl = null;
+    if (req.file) {
+      photoUrl = '/uploads/' + req.file.filename;
+    } else if (req.body.photo) {
+      photoUrl = req.body.photo; // fallback for mock
+    }
 
     const newListing = await prisma.listing.create({
       data: {
@@ -110,7 +130,7 @@ router.post('/', [authMiddleware, farmerRoleMiddleware], async (req, res) => {
         quantityKg: parseFloat(quantityKg),
         priceGhsPerTonne: parseFloat(priceGhsPerTonne),
         region,
-        photo: photo || null,
+        photo: photoUrl,
         farmerId: req.user.userId,
       }
     });

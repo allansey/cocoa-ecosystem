@@ -2,10 +2,11 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Send, User, MessageCircle, Loader2 } from 'lucide-react';
-import { db } from '@/firebase';
-import { ref, push, onValue, serverTimestamp } from 'firebase/database';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useRouter } from 'next/navigation';
+import { db } from '@/firebase';
+import api from '@/lib/api';
+import { ref, push, onValue, serverTimestamp, update } from 'firebase/database';
 
 interface Message {
   id: string;
@@ -22,6 +23,7 @@ export default function ChatPage({ params }: { params: { locale: string, inquiry
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [chatMeta, setChatMeta] = useState<{ recipientId: string, title: string, recipientName: string } | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -30,26 +32,60 @@ export default function ChatPage({ params }: { params: { locale: string, inquiry
     }
 
     if (!db) {
-      console.warn("Firebase is not configured. Chat is unavailable.");
+      console.warn('Firebase Realtime Database is not configured.');
       setLoading(false);
       return;
     }
+
+    const fetchMeta = async () => {
+      try {
+        if (params.inquiryId.startsWith('inquiry_')) {
+          const parts = params.inquiryId.split('_');
+          const listingId = parts[1];
+          const buyerId = parts[2];
+          const res = await api.get(`/listings/${listingId}`);
+          const listing = res.data;
+          
+          if (user?.id === buyerId) {
+            setChatMeta({ recipientId: listing.farmer.id, title: `Inquiry: ${listing.grade} Cocoa`, recipientName: listing.farmer.name });
+          } else {
+            setChatMeta({ recipientId: buyerId, title: `Inquiry: ${listing.grade} Cocoa`, recipientName: 'Buyer' });
+          }
+        } else if (params.inquiryId.startsWith('order_')) {
+          const parts = params.inquiryId.split('_');
+          const orderId = parts[1];
+          const res = await api.get(`/orders/${orderId}`);
+          const order = res.data;
+          
+          if (user?.id === order.buyer.id) {
+            setChatMeta({ recipientId: order.farmer.id, title: `Order #${order.id.slice(0, 8).toUpperCase()}`, recipientName: order.farmer.name });
+          } else {
+            setChatMeta({ recipientId: order.buyer.id, title: `Order #${order.id.slice(0, 8).toUpperCase()}`, recipientName: order.buyer.name });
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching chat meta:', err);
+      }
+    };
+    if (user) fetchMeta();
 
     const chatRef = ref(db, `chats/${params.inquiryId}`);
     const unsubscribe = onValue(chatRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        const parsedMessages = Object.keys(data).map(key => ({
+        const parsed: Message[] = Object.keys(data).map((key) => ({
           id: key,
-          ...data[key]
+          ...data[key],
         })).sort((a, b) => a.timestamp - b.timestamp);
-        setMessages(parsedMessages);
+        setMessages(parsed);
+      } else {
+        setMessages([]);
       }
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [params.inquiryId, isAuthenticated, router, params.locale]);
+  }, [params.inquiryId, isAuthenticated, router, params.locale, user]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -59,17 +95,49 @@ export default function ChatPage({ params }: { params: { locale: string, inquiry
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !user || !db) return;
+    if (!newMessage.trim() || !user || !db || !chatMeta) return;
 
-    const chatRef = ref(db, `chats/${params.inquiryId}`);
+    const msgText = newMessage.trim();
+    setNewMessage('');
+    
     try {
-      await push(chatRef, {
-        text: newMessage,
+      const chatRef = ref(db, `chats/${params.inquiryId}`);
+      const newMsgRef = push(chatRef);
+      const timestamp = serverTimestamp();
+      
+      const updates: any = {};
+      
+      // Update chat thread
+      updates[`chats/${params.inquiryId}/${newMsgRef.key}`] = {
+        text: msgText,
         senderId: user.id,
         senderName: user.name || user.email.split('@')[0],
-        timestamp: serverTimestamp()
-      });
-      setNewMessage('');
+        timestamp,
+      };
+
+      // Update current user's inbox
+      updates[`userChats/${user.id}/${params.inquiryId}`] = {
+        id: params.inquiryId,
+        title: chatMeta.title,
+        otherPartyName: chatMeta.recipientName,
+        otherPartyId: chatMeta.recipientId,
+        lastMessage: msgText,
+        timestamp,
+        unread: false
+      };
+
+      // Update recipient's inbox
+      updates[`userChats/${chatMeta.recipientId}/${params.inquiryId}`] = {
+        id: params.inquiryId,
+        title: chatMeta.title,
+        otherPartyName: user.name || 'User',
+        otherPartyId: user.id,
+        lastMessage: msgText,
+        timestamp,
+        unread: true
+      };
+
+      await update(ref(db), updates);
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -92,10 +160,11 @@ export default function ChatPage({ params }: { params: { locale: string, inquiry
             </div>
             <div>
               <h2 className="text-lg font-black tracking-tight leading-none mb-1">Inquiry Thread</h2>
-              <p className="text-xs text-amber-100/70 font-bold uppercase tracking-widest">ID: {params.inquiryId.split('_').pop()}</p>
+              <p className="text-xs text-amber-100/70 font-bold uppercase tracking-widest">ID: {params.inquiryId.slice(-8).toUpperCase()}</p>
             </div>
           </div>
           <div className="hidden sm:flex items-center gap-2 bg-black/10 px-3 py-1.5 rounded-xl border border-white/10">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <User size={14} className="text-amber-200" />
             <span className="text-sm font-bold">{user.role} View</span>
           </div>

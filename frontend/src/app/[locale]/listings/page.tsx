@@ -159,8 +159,16 @@ export default function ListingsPage({ params: { locale } }: { params: { locale:
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {listings.map(listing => (
             <div key={listing.id} className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg overflow-hidden border border-white hover:shadow-xl transition-all transform hover:-translate-y-1">
-              <div className="h-48 bg-gradient-to-tr from-amber-100 to-amber-50 flex items-center justify-center relative border-b border-amber-100/50">
-                <span className="text-amber-800/50 font-bold tracking-widest text-sm uppercase">No Photo</span>
+              <div className="h-48 bg-gradient-to-tr from-amber-100 to-amber-50 flex items-center justify-center relative border-b border-amber-100/50 overflow-hidden">
+                {listing.photo ? (
+                  <img 
+                    src={`http://localhost:5000${listing.photo}`} 
+                    alt={`Cocoa ${listing.grade}`} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-amber-800/50 font-bold tracking-widest text-sm uppercase">No Photo</span>
+                )}
                 <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-black text-amber-700 shadow-sm border border-amber-100">
                   {listing.grade}
                 </div>

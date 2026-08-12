@@ -197,7 +197,7 @@ export default function ListingDetailsPage({ params }: { params: { locale: strin
                 </button>
               )}
               <Link 
-                href={`/${params.locale}/chat/inquiry_${listing.id}`}
+                href={user ? `/${params.locale}/chat/inquiry_${listing.id}_${user.id}` : `/${params.locale}/auth/login`}
                 className="flex-1 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center active:scale-[0.98]"
               >
                 <MessageCircle size={18} className="mr-2" /> Message
