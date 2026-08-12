@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const prisma = require('../prismaClient');
+const admin = require('../firebaseAdmin');
 const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
@@ -26,7 +27,18 @@ router.post('/register', async (req, res) => {
     });
 
     const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET || 'supersecretjwtkey', { expiresIn: '7d' });
-    res.status(201).json({ token, user: { id: user.id, email: user.email, role: user.role, name: user.name, phone: user.phone } });
+
+    // Mint a Firebase Custom Token so the frontend can sign into Firebase Auth
+    let firebaseToken = null;
+    if (admin.apps.length) {
+      try {
+        firebaseToken = await admin.auth().createCustomToken(user.id);
+      } catch (e) {
+        console.error('Firebase custom token error (register):', e.message);
+      }
+    }
+
+    res.status(201).json({ token, firebaseToken, user: { id: user.id, email: user.email, role: user.role, name: user.name, phone: user.phone } });
   } catch (error) {
     console.error('Registration Error:', error);
     res.status(500).json({ error: 'Server error during registration.' });
@@ -43,7 +55,18 @@ router.post('/login', async (req, res) => {
     if (!validPassword) return res.status(400).json({ error: 'Invalid email or password.' });
 
     const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET || 'supersecretjwtkey', { expiresIn: '7d' });
-    res.json({ token, user: { id: user.id, email: user.email, role: user.role, name: user.name, phone: user.phone } });
+
+    // Mint a Firebase Custom Token so the frontend can sign into Firebase Auth
+    let firebaseToken = null;
+    if (admin.apps.length) {
+      try {
+        firebaseToken = await admin.auth().createCustomToken(user.id);
+      } catch (e) {
+        console.error('Firebase custom token error (login):', e.message);
+      }
+    }
+
+    res.json({ token, firebaseToken, user: { id: user.id, email: user.email, role: user.role, name: user.name, phone: user.phone } });
   } catch (error) {
     res.status(500).json({ error: 'Server error during login.' });
   }

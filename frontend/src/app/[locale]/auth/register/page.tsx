@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
+import { useAuthStore } from '@/store/useAuthStore';
 
 function RegisterForm({ locale }: { locale: string }) {
   const t = useTranslations('Auth');
@@ -36,15 +37,25 @@ function RegisterForm({ locale }: { locale: string }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const login = useAuthStore(state => state.login);
+  const signInToFirebase = useAuthStore(state => state.signInToFirebase);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await api.post('/auth/register', { email, password, role, name });
-      // Redirect to login after successful registration
-      router.push(`/${locale}/auth/login`);
+      const res = await api.post('/auth/register', { email, password, role, name });
+      const { user, token, firebaseToken } = res.data;
+
+      // Log the user in immediately after registration
+      login(user, token);
+
+      // Sign into Firebase so Realtime Database rules work
+      if (firebaseToken) await signInToFirebase(firebaseToken);
+
+      // Redirect to dashboard
+      router.push(`/${locale}/dashboard`);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Registration failed');
     } finally {

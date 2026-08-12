@@ -16,6 +16,7 @@ export default function LoginPage({ params: { locale } }: { params: { locale: st
   
   const router = useRouter();
   const login = useAuthStore(state => state.login);
+  const signInToFirebase = useAuthStore(state => state.signInToFirebase);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,10 +24,13 @@ export default function LoginPage({ params: { locale } }: { params: { locale: st
     setLoading(true);
     try {
       const res = await api.post('/auth/login', { email, password });
-      const { user, token } = res.data;
+      const { user, token, firebaseToken } = res.data;
       
       // Save to Zustand
       login(user, token);
+
+      // Sign into Firebase so Realtime Database rules work
+      if (firebaseToken) await signInToFirebase(firebaseToken);
       
       // Redirect to dashboard
       router.push(`/${locale}/dashboard`);

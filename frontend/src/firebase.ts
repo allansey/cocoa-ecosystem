@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
+import { getAuth } from "firebase/auth";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -16,12 +17,14 @@ const firebaseConfig = {
 // Initialize Firebase gracefully
 let app;
 let db: ReturnType<typeof getDatabase> | null = null;
+let auth: ReturnType<typeof getAuth> | null = null;
 
 try {
   app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
   db = getDatabase(app);
+  auth = getAuth(app);
 } catch (error) {
   console.warn("Firebase initialization failed. Check environment variables.");
 }
 
-export { app, db };
+export { app, db, auth };

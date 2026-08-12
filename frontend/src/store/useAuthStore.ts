@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { signInWithCustomToken, signOut } from 'firebase/auth';
+import { auth } from '@/firebase';
 
 interface User {
   id: string;
@@ -15,6 +17,7 @@ interface AuthState {
   isAuthenticated: boolean;
   login: (user: User, token: string) => void;
   logout: () => void;
+  signInToFirebase: (firebaseToken: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -24,7 +27,19 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       login: (user, token) => set({ user, token, isAuthenticated: true }),
-      logout: () => set({ user: null, token: null, isAuthenticated: false }),
+      logout: () => {
+        // Sign out of Firebase Auth when the user logs out
+        if (auth) signOut(auth).catch(() => {});
+        set({ user: null, token: null, isAuthenticated: false });
+      },
+      signInToFirebase: async (firebaseToken: string) => {
+        if (!auth || !firebaseToken) return;
+        try {
+          await signInWithCustomToken(auth, firebaseToken);
+        } catch (e) {
+          console.error('Firebase sign-in failed:', e);
+        }
+      },
     }),
     {
       name: 'auth-storage', // name of the item in the storage (must be unique)

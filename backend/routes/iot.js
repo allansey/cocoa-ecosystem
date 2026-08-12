@@ -1,21 +1,9 @@
 const express = require('express');
 const prisma = require('../prismaClient');
 const { authMiddleware } = require('../middleware/auth');
-const admin = require('firebase-admin');
+const admin = require('../firebaseAdmin');
 
 const router = express.Router();
-
-// Initialize Firebase Admin (Only once)
-if (!admin.apps.length && process.env.FIREBASE_SERVICE_ACCOUNT) {
-  try {
-    admin.initializeApp({
-      credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)),
-      databaseURL: process.env.FIREBASE_DATABASE_URL
-    });
-  } catch (e) {
-    console.error('Firebase Admin initialization failed:', e.message);
-  }
-}
 
 const db = admin.apps.length ? admin.database() : null;
 
