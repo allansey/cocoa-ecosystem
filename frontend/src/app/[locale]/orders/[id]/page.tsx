@@ -538,7 +538,6 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
                 <p className="text-xs text-emerald-600 mt-1">Cocoa inspected and receipt confirmed.</p>
               </div>
             )}
-          </div>
 
             {isCancelled && (
               <div className="bg-slate-100 border border-slate-200 rounded-3xl p-6 text-center">
