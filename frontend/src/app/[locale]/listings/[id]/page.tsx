@@ -30,11 +30,23 @@ export default function ListingDetailsPage({ params }: { params: { locale: strin
   const [orderQuantity, setOrderQuantity] = useState(1);
   const [ordering, setOrdering] = useState(false);
 
+  // Food-App Style Checkout Drawer state
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState<1 | 2>(1);
+  const [recipientName, setRecipientName] = useState('');
+  const [recipientPhone, setRecipientPhone] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryCity, setDeliveryCity] = useState('');
+  const [deliveryRegion, setDeliveryRegion] = useState('');
+  const [deliveryNotes, setDeliveryNotes] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'MOMO'>('COD');
+
   useEffect(() => {
     const fetchListing = async () => {
       try {
         const res = await api.get(`/listings/${params.id}`);
         setListing(res.data);
+        if (res.data) setDeliveryRegion(res.data.region || 'Ashanti');
       } catch (err: any) {
         setError(err.response?.data?.error || 'Failed to fetch listing details');
       } finally {
@@ -44,30 +56,65 @@ export default function ListingDetailsPage({ params }: { params: { locale: strin
     fetchListing();
   }, [params.id]);
 
-  const handleOrder = async () => {
+  useEffect(() => {
+    if (user) {
+      setRecipientName(user.name || '');
+      setRecipientPhone(user.phone || '');
+    }
+  }, [user]);
+
+  const subtotal = listing ? (listing.priceGhsPerTonne / 1000) * orderQuantity : 0;
+  const deliveryFee = orderQuantity > 500 ? 250 : 120;
+  const serviceFee = Math.round(subtotal * 0.015);
+  const grandTotal = subtotal + deliveryFee + serviceFee;
+
+  const handleOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!user) {
       router.push(`/${params.locale}/auth/login`);
       return;
     }
     setOrdering(true);
+    setError('');
+
     try {
-      const totalAmount = (listing!.priceGhsPerTonne / 1000) * orderQuantity;
       const orderRes = await api.post('/orders', {
         listingId: listing!.id,
         quantityKg: orderQuantity,
-        totalAmount,
-        paymentMethod: 'MOMO'
+        totalAmount: grandTotal,
+        subtotal,
+        deliveryFee,
+        serviceFee,
+        paymentMethod,
+        recipientName,
+        recipientPhone,
+        deliveryAddress,
+        deliveryCity,
+        deliveryRegion,
+        deliveryNotes,
+        estimatedDeliveryDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
       });
 
-      const payRes = await api.post('/payment/initialize', {
-        orderId: orderRes.data.id,
-        amount: totalAmount,
-        email: user.email
-      });
+      if (paymentMethod === 'MOMO') {
+        try {
+          const payRes = await api.post('/payment/initialize', {
+            orderId: orderRes.data.id,
+            amount: grandTotal,
+            email: user.email
+          });
+          if (payRes.data?.data?.authorization_url) {
+            window.location.href = payRes.data.data.authorization_url;
+            return;
+          }
+        } catch (payErr) {
+          console.warn('Paystack redirect failed, proceeding to order page:', payErr);
+        }
+      }
 
-      window.location.href = payRes.data.data.authorization_url;
+      // Redirect straight to Order details / tracking page!
+      router.push(`/${params.locale}/orders/${orderRes.data.id}`);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Order failed');
+      setError(err.response?.data?.error || 'Order placement failed');
     } finally {
       setOrdering(false);
     }
@@ -81,7 +128,7 @@ export default function ListingDetailsPage({ params }: { params: { locale: strin
     );
   }
 
-  if (error || !listing) {
+  if (error && !listing) {
     return (
       <div className="max-w-4xl mx-auto py-16 px-6 text-center">
         <div className="bg-red-50 text-red-600 px-6 py-4 rounded-xl shadow-sm mb-8 inline-block font-medium">{error || 'Listing not found'}</div>
@@ -109,9 +156,9 @@ export default function ListingDetailsPage({ params }: { params: { locale: strin
             <div className="absolute inset-0 bg-amber-900/5 group-hover:bg-amber-900/0 transition-colors duration-500 z-10" />
             <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
               <ImageIcon size={48} strokeWidth={1} className="mb-4 opacity-50" />
-              <span className="font-medium tracking-widest text-sm uppercase opacity-50">Image unavailable</span>
+              <span className="font-medium tracking-widest text-sm uppercase opacity-50">Premium Batch</span>
             </div>
-            {listing.status === 'SOLD' && (
+            {listing?.status === 'SOLD' && (
               <div className="absolute top-6 left-6 z-20">
                 <span className="bg-red-500 text-white px-4 py-1.5 rounded-full text-xs font-bold tracking-wider shadow-sm">
                   SOLD OUT
@@ -124,22 +171,22 @@ export default function ListingDetailsPage({ params }: { params: { locale: strin
           <div className="md:w-[55%] p-8 md:p-12 flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <span className="bg-amber-100/80 text-amber-800 font-semibold px-4 py-1 rounded-full text-xs tracking-wide">
-                Grade {listing.grade}
+                Grade {listing?.grade}
               </span>
               <span className="text-slate-400 text-sm flex items-center">
                 <Calendar size={14} className="mr-1.5" />
-                {new Date(listing.createdAt).toLocaleDateString()}
+                {listing?.createdAt ? new Date(listing.createdAt).toLocaleDateString() : ''}
               </span>
             </div>
             
             <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-2 tracking-tight">
-              {listing.quantityKg.toLocaleString()} kg
+              {listing?.quantityKg.toLocaleString()} kg
             </h1>
-            <p className="text-lg text-slate-500 font-medium mb-8">Premium Cocoa Beans</p>
+            <p className="text-lg text-slate-500 font-medium mb-8">Certified Dried Cocoa Beans</p>
             
             <div className="flex items-end gap-2 mb-10 pb-8 border-b border-slate-100">
               <span className="text-4xl font-bold text-emerald-600 leading-none">
-                {listing.priceGhsPerTonne.toLocaleString()}
+                {listing?.priceGhsPerTonne.toLocaleString()}
               </span>
               <span className="text-slate-500 font-medium mb-1">GHS / Tonne</span>
             </div>
@@ -151,7 +198,7 @@ export default function ListingDetailsPage({ params }: { params: { locale: strin
                 </div>
                 <div>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Farmer</p>
-                  <p className="font-semibold text-slate-800">{listing.farmer?.name || 'Unknown'}</p>
+                  <p className="font-semibold text-slate-800">{listing?.farmer?.name || 'Partner Farmer'}</p>
                 </div>
               </div>
               <div className="flex items-start gap-4">
@@ -159,15 +206,15 @@ export default function ListingDetailsPage({ params }: { params: { locale: strin
                   <MapPin size={18} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Location</p>
-                  <p className="font-semibold text-slate-800">{listing.region} Region</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Origin</p>
+                  <p className="font-semibold text-slate-800">{listing?.region} Region</p>
                 </div>
               </div>
             </div>
             
-            {user?.role === 'BUYER' && listing.status === 'AVAILABLE' && (
+            {user?.role === 'BUYER' && listing?.status === 'AVAILABLE' && (
               <div className="mb-8 bg-slate-50 rounded-2xl p-6 border border-slate-100">
-                <label className="block text-sm font-semibold text-slate-700 mb-3">Order Quantity (kg)</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-3">Select Quantity to Order (kg)</label>
                 <div className="flex items-center gap-4">
                   <div className="relative">
                     <input 
@@ -177,9 +224,9 @@ export default function ListingDetailsPage({ params }: { params: { locale: strin
                     />
                   </div>
                   <div className="flex-grow text-right">
-                    <p className="text-xs font-semibold text-slate-400 mb-1">Total Price</p>
+                    <p className="text-xs font-semibold text-slate-400 mb-1">Estimated Cocoa Subtotal</p>
                     <p className="text-2xl font-bold text-slate-900">
-                      GHS {((listing.priceGhsPerTonne / 1000) * orderQuantity).toLocaleString()}
+                      GHS {subtotal.toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -187,25 +234,202 @@ export default function ListingDetailsPage({ params }: { params: { locale: strin
             )}
 
             <div className="mt-auto flex flex-col sm:flex-row gap-4">
-              {user?.role === 'BUYER' && listing.status === 'AVAILABLE' && (
+              {user?.role === 'BUYER' && listing?.status === 'AVAILABLE' && (
                 <button 
-                  onClick={handleOrder} disabled={ordering}
-                  className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center shadow-lg shadow-slate-900/20 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                  onClick={() => setShowCheckout(true)}
+                  className="flex-1 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white font-bold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center shadow-lg shadow-amber-600/20 active:scale-[0.98]"
                 >
-                  {ordering ? <Loader2 className="animate-spin mr-2" size={20} /> : null}
-                  {ordering ? 'Processing...' : 'Buy Now'}
+                  Order Cocoa & Checkout &rarr;
                 </button>
               )}
               <Link 
-                href={user ? `/${params.locale}/chat/inquiry_${listing.id}_${user.id}` : `/${params.locale}/auth/login`}
+                href={user ? `/${params.locale}/chat/inquiry_${listing?.id}_${user.id}` : `/${params.locale}/auth/login`}
                 className="flex-1 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center active:scale-[0.98]"
               >
-                <MessageCircle size={18} className="mr-2" /> Message
+                <MessageCircle size={18} className="mr-2" /> Message Farmer
               </Link>
             </div>
           </div>
         </div>
       </div>
+
+      {/* FOOD-APP STYLE CHECKOUT MODAL / DRAWER */}
+      {showCheckout && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center pb-4 border-b border-slate-100 mb-6">
+              <div>
+                <span className="text-xs font-black uppercase tracking-widest text-amber-600">Checkout Step {checkoutStep} of 2</span>
+                <h2 className="text-2xl font-black text-slate-900">
+                  {checkoutStep === 1 ? 'Delivery & Recipient Details' : 'Review & Confirm Order'}
+                </h2>
+              </div>
+              <button onClick={() => setShowCheckout(false)} className="text-slate-400 hover:text-slate-600 text-2xl font-black">
+                &times;
+              </button>
+            </div>
+
+            {error && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-xl mb-4 text-sm font-medium">
+                {error}
+              </div>
+            )}
+
+            {checkoutStep === 1 ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Recipient Name</label>
+                    <input 
+                      type="text" value={recipientName} onChange={e => setRecipientName(e.target.value)} required
+                      placeholder="Full Name"
+                      className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Phone Number</label>
+                    <input 
+                      type="tel" value={recipientPhone} onChange={e => setRecipientPhone(e.target.value)} required
+                      placeholder="+233 XX XXX XXXX"
+                      className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Delivery Address / Warehouse</label>
+                  <input 
+                    type="text" value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)} required
+                    placeholder="e.g. Plot 45 Industrial Zone, Off Highway"
+                    className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">City / Town</label>
+                    <input 
+                      type="text" value={deliveryCity} onChange={e => setDeliveryCity(e.target.value)} required
+                      placeholder="e.g. Kumasi"
+                      className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Region</label>
+                    <select 
+                      value={deliveryRegion} onChange={e => setDeliveryRegion(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none bg-white font-medium"
+                    >
+                      <option value="Ashanti">Ashanti Region</option>
+                      <option value="Western">Western Region</option>
+                      <option value="Eastern">Eastern Region</option>
+                      <option value="Central">Central Region</option>
+                      <option value="Greater Accra">Greater Accra</option>
+                      <option value="Ahafo">Ahafo Region</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Delivery Instructions / Notes (Optional)</label>
+                  <textarea 
+                    rows={2} value={deliveryNotes} onChange={e => setDeliveryNotes(e.target.value)}
+                    placeholder="e.g. Call upon arrival at main gate"
+                    className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                  />
+                </div>
+
+                <button 
+                  onClick={() => {
+                    if (!deliveryAddress || !deliveryCity || !recipientName) {
+                      setError('Please fill in required delivery fields.');
+                      return;
+                    }
+                    setError('');
+                    setCheckoutStep(2);
+                  }}
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl transition-all mt-4"
+                >
+                  Continue to Summary &rarr;
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleOrder} className="space-y-5">
+                {/* Items & Fees breakdown */}
+                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600 font-medium">Cocoa Batch ({orderQuantity} kg - Grade {listing?.grade})</span>
+                    <span className="font-bold text-slate-800">GHS {subtotal.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600 font-medium">Transport & Logistics Fee</span>
+                    <span className="font-bold text-slate-800">GHS {deliveryFee.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600 font-medium">Escrow Service & Verification Fee</span>
+                    <span className="font-bold text-slate-800">GHS {serviceFee.toLocaleString()}</span>
+                  </div>
+                  <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
+                    <div>
+                      <span className="font-black text-slate-900 text-base">Grand Total</span>
+                      <p className="text-[11px] text-emerald-600 font-bold">Estimated Arrival: 2-3 Business Days</p>
+                    </div>
+                    <span className="text-2xl font-black text-emerald-600">GHS {grandTotal.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                {/* Delivery Address summary */}
+                <div className="bg-amber-50/60 rounded-2xl p-4 border border-amber-100 text-xs space-y-1">
+                  <span className="font-black text-amber-800 uppercase tracking-widest">Deliver To:</span>
+                  <p className="font-bold text-slate-800">{recipientName} ({recipientPhone || 'No Phone'})</p>
+                  <p className="text-slate-600">{deliveryAddress}, {deliveryCity}, {deliveryRegion} Region</p>
+                </div>
+
+                {/* Payment Method */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-2">Payment Method</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button 
+                      type="button" onClick={() => setPaymentMethod('COD')}
+                      className={`p-3 rounded-xl text-left border-2 font-bold text-xs flex flex-col gap-1 transition-all ${
+                        paymentMethod === 'COD' ? 'border-amber-600 bg-amber-50 text-amber-900' : 'border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      <span>💵 Cash / Pay on Delivery</span>
+                      <span className="text-[10px] font-medium opacity-70">Pay when cocoa arrives</span>
+                    </button>
+                    <button 
+                      type="button" onClick={() => setPaymentMethod('MOMO')}
+                      className={`p-3 rounded-xl text-left border-2 font-bold text-xs flex flex-col gap-1 transition-all ${
+                        paymentMethod === 'MOMO' ? 'border-amber-600 bg-amber-50 text-amber-900' : 'border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      <span>📱 Mobile Money (MoMo)</span>
+                      <span className="text-[10px] font-medium opacity-70">Instant Paystack gateway</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    type="button" onClick={() => setCheckoutStep(1)}
+                    className="w-1/3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 rounded-xl text-sm"
+                  >
+                    &larr; Back
+                  </button>
+                  <button 
+                    type="submit" disabled={ordering}
+                    className="w-2/3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-emerald-600/20 text-sm flex items-center justify-center gap-2"
+                  >
+                    {ordering ? <Loader2 className="animate-spin" size={18} /> : null}
+                    {ordering ? 'Placing Order...' : 'Confirm & Place Order'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

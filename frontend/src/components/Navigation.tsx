@@ -54,6 +54,9 @@ export default function Navigation() {
               <Link href={`/${locale}/dashboard`} className="text-sm font-bold text-slate-600 hover:text-amber-700 transition-colors">
                 Dashboard
               </Link>
+              <Link href={`/${locale}/orders`} className="text-sm font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-xl border border-amber-200 transition-all flex items-center gap-1">
+                🚚 My Orders
+              </Link>
               <Link href={`/${locale}/profile`} className="text-sm font-bold text-slate-600 hover:text-amber-700 transition-colors">
                 Profile
               </Link>
@@ -101,6 +104,9 @@ export default function Navigation() {
             <>
               <Link href={`/${locale}/dashboard`} onClick={closeMenu} className="w-full text-center text-base font-bold text-slate-600 hover:text-amber-700 py-2 transition-colors">
                 Dashboard
+              </Link>
+              <Link href={`/${locale}/orders`} onClick={closeMenu} className="w-full text-center text-base font-bold text-amber-700 py-2 transition-colors">
+                🚚 My Orders & Dispatches
               </Link>
               <Link href={`/${locale}/profile`} onClick={closeMenu} className="w-full text-center text-base font-bold text-slate-600 hover:text-amber-700 py-2 transition-colors">
                 Profile

@@ -230,25 +230,34 @@ export default function DashboardPage({ params: { locale } }: { params: { locale
 
         {/* Dashboard Content */}
         <div className="lg:col-span-2">
-          {user.role === 'FARMER' && (
-            <div className="flex gap-4 mb-6">
-              <button 
-                onClick={() => setActiveTab('transactions')}
-                className={`px-6 py-3 rounded-2xl font-black transition-all ${activeTab === 'transactions' ? 'bg-slate-800 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
-              >
-                Orders
-              </button>
-              <button 
-                onClick={() => setActiveTab('listings')}
-                className={`px-6 py-3 rounded-2xl font-black transition-all ${activeTab === 'listings' ? 'bg-slate-800 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
-              >
-                My Listings
-              </button>
+          {user.role !== 'FARMER' && (
+            <div className="flex justify-between items-center mb-4 ml-2">
+              <h2 className="text-xl font-black text-slate-800 uppercase tracking-widest">My Orders</h2>
+              <Link href={`/${locale}/orders`} className="text-xs font-bold text-amber-700 hover:text-amber-800 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200">
+                View All Orders Hub &rarr;
+              </Link>
             </div>
           )}
-          
-          {user.role !== 'FARMER' && (
-             <h2 className="text-xl font-black text-slate-800 uppercase tracking-widest mb-4 ml-2">My Orders</h2>
+          {user.role === 'FARMER' && (
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setActiveTab('transactions')}
+                  className={`px-6 py-3 rounded-2xl font-black transition-all ${activeTab === 'transactions' ? 'bg-slate-800 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
+                >
+                  Orders
+                </button>
+                <button 
+                  onClick={() => setActiveTab('listings')}
+                  className={`px-6 py-3 rounded-2xl font-black transition-all ${activeTab === 'listings' ? 'bg-slate-800 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
+                >
+                  My Listings
+                </button>
+              </div>
+              <Link href={`/${locale}/orders`} className="text-xs font-bold text-amber-700 hover:text-amber-800 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200">
+                Tracking Hub &rarr;
+              </Link>
+            </div>
           )}
 
           <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden min-h-[400px]">

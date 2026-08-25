@@ -16,9 +16,23 @@ interface Order {
   id: string;
   quantityKg: number;
   totalAmount: number;
+  subtotal?: number;
+  deliveryFee?: number;
+  serviceFee?: number;
   proposedPrice?: number;
   status: string;
   paymentMethod: string;
+  deliveryAddress?: string;
+  deliveryCity?: string;
+  deliveryRegion?: string;
+  recipientName?: string;
+  recipientPhone?: string;
+  deliveryNotes?: string;
+  transporterName?: string;
+  transporterPhone?: string;
+  vehicleNumber?: string;
+  trackingNumber?: string;
+  estimatedDeliveryDate?: string;
   createdAt: string;
   listing: { id: string; grade: string; region: string; priceGhsPerTonne: number; photo?: string };
   buyer: { id: string; name: string; email: string; phone: string };
@@ -63,6 +77,7 @@ const ACTION_LABELS: Record<string, string> = {
   COMPLETED: 'Completed',
   DISPUTED: 'Dispute Raised',
   CANCELLED: 'Cancelled',
+  LOGISTICS_UPDATED: 'Logistics Updated',
 };
 
 const ACTION_COLORS: Record<string, string> = {
@@ -75,6 +90,7 @@ const ACTION_COLORS: Record<string, string> = {
   COMPLETED: 'bg-emerald-100 text-emerald-700',
   DISPUTED: 'bg-red-100 text-red-700',
   CANCELLED: 'bg-slate-100 text-slate-700',
+  LOGISTICS_UPDATED: 'bg-purple-100 text-purple-700',
 };
 
 export default function OrderDetailsPage({ params }: { params: { locale: string; id: string } }) {
@@ -87,6 +103,13 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
   const [actionLoading, setActionLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'timeline' | 'chat'>('timeline');
 
+  // Dispatch Logistics Modal state for Farmer
+  const [showDispatchModal, setShowDispatchModal] = useState(false);
+  const [driverName, setDriverName] = useState('');
+  const [driverPhone, setDriverPhone] = useState('');
+  const [truckNumber, setTruckNumber] = useState('');
+  const [trackingRef, setTrackingRef] = useState('');
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -95,6 +118,12 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
     try {
       const res = await api.get(`/orders/${params.id}`);
       setOrder(res.data);
+      if (res.data) {
+        setDriverName(res.data.transporterName || '');
+        setDriverPhone(res.data.transporterPhone || '');
+        setTruckNumber(res.data.vehicleNumber || '');
+        setTrackingRef(res.data.trackingNumber || `TRK-${params.id.slice(0, 8).toUpperCase()}`);
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load order');
     } finally {
@@ -181,12 +210,20 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
     } catch (err) { console.error('Error sending message:', err); }
   };
 
-  const updateStatus = async (newStatus: string, note?: string) => {
+  const updateStatus = async (newStatus: string, note?: string, logisticsData?: any) => {
     if (!order) return;
     setActionLoading(true);
     try {
-      const res = await api.put(`/orders/${order.id}/status`, { status: newStatus, note });
+      const payload: any = { status: newStatus, note };
+      if (logisticsData) {
+        payload.transporterName = logisticsData.driverName;
+        payload.transporterPhone = logisticsData.driverPhone;
+        payload.vehicleNumber = logisticsData.truckNumber;
+        payload.trackingNumber = logisticsData.trackingRef;
+      }
+      const res = await api.put(`/orders/${order.id}/status`, payload);
       setOrder(res.data);
+      setShowDispatchModal(false);
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to update status');
     } finally {
@@ -220,8 +257,8 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-amber-50/30 pt-8 pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
 
-        <Link href={`/${params.locale}/dashboard`} className="inline-flex items-center text-amber-700 hover:text-amber-900 font-bold mb-8 bg-white px-4 py-2 rounded-full shadow-sm border border-amber-100 transition-all hover:shadow-md">
-          <ArrowLeft size={16} className="mr-2" /> Back to Dashboard
+        <Link href={`/${params.locale}/orders`} className="inline-flex items-center text-amber-700 hover:text-amber-900 font-bold mb-8 bg-white px-4 py-2 rounded-full shadow-sm border border-amber-100 transition-all hover:shadow-md">
+          <ArrowLeft size={16} className="mr-2" /> Back to Orders Hub
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -232,45 +269,108 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
             {/* Order Header Card */}
             <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
               <div className={`p-6 ${isDisputed ? 'bg-red-600' : isCancelled ? 'bg-slate-600' : isCompleted ? 'bg-emerald-600' : 'bg-gradient-to-br from-amber-700 to-amber-600'} text-white`}>
-                <p className="text-xs font-black uppercase tracking-widest text-white/60 mb-1">Order Reference</p>
-                <h1 className="text-2xl font-black tracking-tight">#{order.id.slice(0, 8).toUpperCase()}</h1>
-                <p className="text-white/80 text-sm mt-1">
-                  {order.quantityKg}kg of {order.listing.grade} Cocoa · {order.listing.region}
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-white/60 mb-1">Order Reference</p>
+                    <h1 className="text-2xl font-black tracking-tight">#{order.id.slice(0, 8).toUpperCase()}</h1>
+                  </div>
+                  {order.estimatedDeliveryDate && (
+                    <span className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">
+                      ETA: {new Date(order.estimatedDeliveryDate).toLocaleDateString('en-GH', { day: 'numeric', month: 'short' })}
+                    </span>
+                  )}
+                </div>
+                <p className="text-white/80 text-sm mt-2">
+                  {order.quantityKg.toLocaleString()}kg of {order.listing.grade} Cocoa · {order.deliveryCity || order.listing.region}
                 </p>
               </div>
+
+              {/* Items & Fees Receipt Breakdown */}
               <div className="p-6 space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500 font-medium">Total Amount</span>
-                  <span className="font-black text-slate-800 text-base">GHS {order.totalAmount.toLocaleString()}</span>
+                  <span className="text-slate-500 font-medium">Cocoa Subtotal</span>
+                  <span className="font-bold text-slate-800">GHS {(order.subtotal || order.totalAmount).toLocaleString()}</span>
                 </div>
-                {order.proposedPrice && (
+                {order.deliveryFee ? (
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-500 font-medium">Negotiated Price</span>
-                    <span className="font-bold text-indigo-700">GHS {order.proposedPrice.toLocaleString()}/t</span>
+                    <span className="text-slate-500 font-medium">Logistics & Transport Fee</span>
+                    <span className="font-bold text-slate-800">GHS {order.deliveryFee.toLocaleString()}</span>
                   </div>
-                )}
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500 font-medium">Payment Method</span>
-                  <span className="font-bold text-slate-700">{order.paymentMethod === 'COD' ? 'Cash on Delivery' : order.paymentMethod}</span>
+                ) : null}
+                {order.serviceFee ? (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500 font-medium">Platform & Escrow Fee</span>
+                    <span className="font-bold text-slate-800">GHS {order.serviceFee.toLocaleString()}</span>
+                  </div>
+                ) : null}
+                <div className="pt-2 border-t border-slate-100 flex justify-between text-base">
+                  <span className="font-black text-slate-800">Grand Total</span>
+                  <span className="font-black text-emerald-600 text-lg">GHS {order.totalAmount.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500 font-medium">Placed On</span>
-                  <span className="font-bold text-slate-700">{new Date(order.createdAt).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                <div className="flex justify-between text-xs pt-1">
+                  <span className="text-slate-400 font-medium">Payment Method</span>
+                  <span className="font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-md">
+                    {order.paymentMethod === 'COD' ? 'Cash / Pay on Delivery' : 'Mobile Money (MoMo)'}
+                  </span>
                 </div>
-                <div className={`mt-3 text-center py-2 rounded-xl font-black text-sm uppercase tracking-widest ${
+                <div className={`mt-3 text-center py-2.5 rounded-xl font-black text-xs uppercase tracking-widest ${
                   isDisputed ? 'bg-red-100 text-red-700' :
                   isCancelled ? 'bg-slate-100 text-slate-600' :
                   isCompleted ? 'bg-emerald-100 text-emerald-700' :
-                  'bg-amber-100 text-amber-700'
+                  'bg-amber-100 text-amber-800'
                 }`}>
-                  {order.status.replace(/_/g, ' ')}
+                  Status: {order.status.replace(/_/g, ' ')}
                 </div>
               </div>
             </div>
 
+            {/* Delivery Destination & Recipient Card */}
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 space-y-3">
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center justify-between">
+                <span>Delivery Destination</span>
+                <MapPin size={14} className="text-amber-600" />
+              </h3>
+              <div className="text-sm space-y-1">
+                <p className="font-black text-slate-800">{order.recipientName || order.buyer.name}</p>
+                <p className="text-slate-600 font-medium">{order.deliveryAddress || 'Warehouse Address Pending'}</p>
+                <p className="text-slate-500 text-xs">{order.deliveryCity || order.listing.region}, {order.deliveryRegion || order.listing.region} Region</p>
+                {order.recipientPhone && (
+                  <a href={`tel:${order.recipientPhone}`} className="inline-flex items-center gap-1 text-xs text-amber-700 font-bold mt-1 hover:underline">
+                    <Phone size={12} /> Call Recipient: {order.recipientPhone}
+                  </a>
+                )}
+                {order.deliveryNotes && (
+                  <div className="mt-2 bg-amber-50/70 p-3 rounded-xl border border-amber-100 text-xs text-slate-700">
+                    <span className="font-bold text-amber-900 block mb-0.5">Delivery Instructions:</span>
+                    {order.deliveryNotes}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Driver / Transporter Dispatch Card */}
+            {(order.transporterName || order.status === 'IN_TRANSIT' || order.status === 'DELIVERED') && (
+              <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-3xl p-6 shadow-md space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">Assigned Driver & Transport</span>
+                  <Truck size={18} className="text-amber-400" />
+                </div>
+                <div className="space-y-1">
+                  <p className="font-black text-lg text-white">{order.transporterName || 'Transporter Assigned'}</p>
+                  <p className="text-xs text-slate-300">Vehicle / Truck Plate: <span className="font-bold text-white">{order.vehicleNumber || 'Pending'}</span></p>
+                  <p className="text-xs text-slate-300">Tracking Reference: <span className="font-bold text-amber-300">#{order.trackingNumber || order.id.slice(0, 8).toUpperCase()}</span></p>
+                </div>
+                {order.transporterPhone && (
+                  <a href={`tel:${order.transporterPhone}`} className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all mt-2">
+                    <Phone size={14} /> Call Driver Now
+                  </a>
+                )}
+              </div>
+            )}
+
             {/* Other Party Contact */}
             <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">{otherRole} Details</h3>
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">{otherRole} Profile</h3>
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-700 font-black text-lg">
                   {otherParty.name.charAt(0).toUpperCase()}
@@ -290,7 +390,7 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
             {/* Progress Tracker */}
             {!isDisputed && !isCancelled && (
               <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-6">Progress</h3>
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-6">Delivery Progress</h3>
                 <div className="relative">
                   <div className="absolute left-[19px] top-0 bottom-0 w-0.5 bg-slate-100 z-0" />
                   <div className="flex flex-col gap-5">
@@ -324,7 +424,7 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
                 <ShieldAlert className="text-red-500 shrink-0 mt-1" size={24} />
                 <div>
                   <p className="font-black text-red-800">Dispute Active</p>
-                  <p className="text-sm text-red-600 mt-1">An admin has been notified and will review this transaction shortly. Please keep all communication in the chat.</p>
+                  <p className="text-sm text-red-600 mt-1">An admin support agent has been assigned. Please communicate inside the order chat tab.</p>
                 </div>
               </div>
             )}
@@ -332,14 +432,14 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
             {/* Action Center */}
             {!isTerminal && (
               <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">Actions</h3>
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">Stage Actions</h3>
                 <div className="flex flex-col gap-3">
 
                   {/* FARMER: Accept */}
                   {isFarmer && order.status === 'PENDING_APPROVAL' && (
                     <button disabled={actionLoading} onClick={() => updateStatus('ACCEPTED')}
                       className="w-full bg-amber-600 hover:bg-amber-700 text-white py-3.5 rounded-2xl font-black shadow-lg shadow-amber-600/20 transition-all hover:-translate-y-0.5 disabled:opacity-50 flex items-center justify-center gap-2">
-                      <CheckCircle2 size={18} /> Accept Order
+                      <CheckCircle2 size={18} /> Accept & Process Order
                     </button>
                   )}
 
@@ -355,7 +455,7 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
                   {isBuyer && order.status === 'ACCEPTED' && (
                     <div className="space-y-2">
                       <p className="text-xs text-slate-500 font-medium bg-slate-50 p-3 rounded-xl border border-slate-100">
-                        💡 Cash on Delivery: Confirm that you have arranged the payment and will pay upon delivery.
+                        💡 Confirm that your payment / cash arrangement is ready for when the cocoa is delivered.
                       </p>
                       <button disabled={actionLoading} onClick={() => updateStatus('PAYMENT_PENDING')}
                         className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-2xl font-black shadow-lg shadow-indigo-600/20 transition-all hover:-translate-y-0.5 disabled:opacity-50 flex items-center justify-center gap-2">
@@ -368,7 +468,7 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
                   {isFarmer && order.status === 'PAYMENT_PENDING' && (
                     <div className="space-y-2">
                       <p className="text-xs text-slate-500 font-medium bg-slate-50 p-3 rounded-xl border border-slate-100">
-                        💡 The buyer has confirmed their payment arrangement. Once you've received or verified payment, confirm below.
+                        💡 Buyer confirmed payment arrangement. Confirm payment or escrow agreement below.
                       </p>
                       <button disabled={actionLoading} onClick={() => updateStatus('PAID')}
                         className="w-full bg-green-600 hover:bg-green-700 text-white py-3.5 rounded-2xl font-black shadow-lg shadow-green-600/20 transition-all hover:-translate-y-0.5 disabled:opacity-50 flex items-center justify-center gap-2">
@@ -377,11 +477,11 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
                     </div>
                   )}
 
-                  {/* FARMER: Dispatch */}
+                  {/* FARMER: Dispatch Modal Trigger */}
                   {isFarmer && order.status === 'PAID' && (
-                    <button disabled={actionLoading} onClick={() => updateStatus('IN_TRANSIT')}
+                    <button disabled={actionLoading} onClick={() => setShowDispatchModal(true)}
                       className="w-full bg-amber-600 hover:bg-amber-700 text-white py-3.5 rounded-2xl font-black shadow-lg shadow-amber-600/20 transition-all hover:-translate-y-0.5 disabled:opacity-50 flex items-center justify-center gap-2">
-                      <Truck size={18} /> Mark as Dispatched
+                      <Truck size={18} /> Dispatch Batch & Add Transporter Details
                     </button>
                   )}
 
@@ -389,7 +489,7 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
                   {isFarmer && order.status === 'IN_TRANSIT' && (
                     <button disabled={actionLoading} onClick={() => updateStatus('DELIVERED')}
                       className="w-full bg-teal-600 hover:bg-teal-700 text-white py-3.5 rounded-2xl font-black shadow-lg shadow-teal-600/20 transition-all hover:-translate-y-0.5 disabled:opacity-50 flex items-center justify-center gap-2">
-                      <MapPin size={18} /> Mark as Delivered
+                      <MapPin size={18} /> Mark as Delivered to Destination
                     </button>
                   )}
 
@@ -397,46 +497,34 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
                   {isBuyer && order.status === 'DELIVERED' && (
                     <button disabled={actionLoading} onClick={() => updateStatus('COMPLETED')}
                       className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-2xl font-black shadow-lg shadow-emerald-600/20 transition-all hover:-translate-y-0.5 disabled:opacity-50 flex items-center justify-center gap-2">
-                      <CheckCircle2 size={18} /> Confirm Receipt
+                      <CheckCircle2 size={18} /> Inspect Cocoa & Confirm Receipt
                     </button>
                   )}
 
-                  {/* Waiting states */}
+                  {/* Waiting state badges */}
                   {isFarmer && order.status === 'ACCEPTED' && (
-                    <div className="text-center py-4 text-slate-400 text-sm font-medium bg-slate-50 rounded-2xl">
+                    <div className="text-center py-4 text-slate-400 text-xs font-bold bg-slate-50 rounded-2xl">
                       <Clock size={20} className="mx-auto mb-2" />
                       Waiting for buyer to confirm payment arrangement...
                     </div>
                   )}
                   {isBuyer && order.status === 'PENDING_APPROVAL' && (
-                    <div className="text-center py-4 text-slate-400 text-sm font-medium bg-slate-50 rounded-2xl">
+                    <div className="text-center py-4 text-slate-400 text-xs font-bold bg-slate-50 rounded-2xl">
                       <Clock size={20} className="mx-auto mb-2" />
                       Waiting for farmer to accept your order...
                     </div>
                   )}
-                  {isBuyer && order.status === 'PAYMENT_PENDING' && (
-                    <div className="text-center py-4 text-slate-400 text-sm font-medium bg-slate-50 rounded-2xl">
-                      <Clock size={20} className="mx-auto mb-2" />
-                      Waiting for farmer to confirm payment...
-                    </div>
-                  )}
-                  {isBuyer && order.status === 'PAID' && (
-                    <div className="text-center py-4 text-slate-400 text-sm font-medium bg-slate-50 rounded-2xl">
-                      <Truck size={20} className="mx-auto mb-2" />
-                      Waiting for farmer to dispatch the order...
-                    </div>
-                  )}
                   {isBuyer && order.status === 'IN_TRANSIT' && (
-                    <div className="text-center py-4 text-amber-600 text-sm font-bold bg-amber-50 rounded-2xl border border-amber-100">
+                    <div className="text-center py-4 text-amber-700 text-xs font-bold bg-amber-50 rounded-2xl border border-amber-100">
                       <Truck size={20} className="mx-auto mb-2 animate-pulse" />
-                      Your cocoa is on the way!
+                      Your cocoa dispatch is currently in transit!
                     </div>
                   )}
 
                   {/* Dispute button */}
                   <button disabled={actionLoading} onClick={() => updateStatus('DISPUTED')}
-                    className="w-full border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 py-3 rounded-2xl font-bold transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2">
-                    <AlertTriangle size={16} /> Raise a Dispute
+                    className="w-full border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 py-3 rounded-2xl font-bold transition-all text-xs disabled:opacity-50 flex items-center justify-center gap-2">
+                    <AlertTriangle size={16} /> Raise a Dispute / Request Support
                   </button>
 
                 </div>
@@ -446,10 +534,11 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
             {isCompleted && (
               <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-6 text-center">
                 <CheckCircle2 className="mx-auto text-emerald-500 mb-3" size={36} />
-                <p className="font-black text-emerald-800 text-lg">Transaction Complete</p>
-                <p className="text-sm text-emerald-600 mt-1">This order has been successfully completed.</p>
+                <p className="font-black text-emerald-800 text-lg">Transaction Completed</p>
+                <p className="text-xs text-emerald-600 mt-1">Cocoa inspected and receipt confirmed.</p>
               </div>
             )}
+          </div>
 
             {isCancelled && (
               <div className="bg-slate-100 border border-slate-200 rounded-3xl p-6 text-center">
@@ -562,6 +651,75 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
           </div>
         </div>
       </div>
+
+      {/* FARMER DISPATCH LOGISTICS MODAL */}
+      {showDispatchModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-5">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+              <div>
+                <span className="text-xs font-black uppercase tracking-widest text-amber-600">Dispatch Batch</span>
+                <h3 className="text-xl font-black text-slate-900">Assign Driver & Vehicle Details</h3>
+              </div>
+              <button onClick={() => setShowDispatchModal(false)} className="text-slate-400 hover:text-slate-600 text-2xl font-black">
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              updateStatus('IN_TRANSIT', undefined, { driverName, driverPhone, truckNumber, trackingRef });
+            }} className="space-y-4">
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Transporter / Driver Name</label>
+                <input 
+                  type="text" value={driverName} onChange={e => setDriverName(e.target.value)} required
+                  placeholder="e.g. Kwame Boateng (VIP Haulage)"
+                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Driver Phone Number</label>
+                <input 
+                  type="tel" value={driverPhone} onChange={e => setDriverPhone(e.target.value)} required
+                  placeholder="e.g. +233 24 123 4567"
+                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Vehicle / Truck Plate</label>
+                  <input 
+                    type="text" value={truckNumber} onChange={e => setTruckNumber(e.target.value)} required
+                    placeholder="e.g. AS 8492-23"
+                    className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Tracking Code / Ref</label>
+                  <input 
+                    type="text" value={trackingRef} onChange={e => setTrackingRef(e.target.value)} required
+                    placeholder="e.g. TRK-9842"
+                    className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowDispatchModal(false)} className="w-1/3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl text-xs">
+                  Cancel
+                </button>
+                <button type="submit" disabled={actionLoading} className="w-2/3 bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-amber-600/20 text-xs flex items-center justify-center gap-2">
+                  <Truck size={16} /> Confirm Dispatch & Start Transit
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

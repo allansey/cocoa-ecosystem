@@ -14,7 +14,11 @@ async function logActivity(orderId, actorId, actorName, actorRole, action, note 
 // CREATE a new order
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { listingId, quantityKg, totalAmount, paymentMethod, proposedPrice } = req.body;
+    const {
+      listingId, quantityKg, totalAmount, paymentMethod, proposedPrice,
+      deliveryAddress, deliveryCity, deliveryRegion, recipientName, recipientPhone, deliveryNotes,
+      subtotal, deliveryFee, serviceFee, estimatedDeliveryDate
+    } = req.body;
     const buyerId = req.user.userId;
     
     const buyer = await prisma.user.findUnique({ where: { id: buyerId } });
@@ -28,6 +32,9 @@ router.post('/', authMiddleware, async (req, res) => {
     if (!listing) return res.status(404).json({ error: 'Listing not found.' });
     if (listing.status === 'SOLD') return res.status(400).json({ error: 'Listing is already sold.' });
 
+    // Calculate default estimated delivery date (3 days from now) if not provided
+    const estDate = estimatedDeliveryDate || new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+
     const order = await prisma.order.create({
       data: {
         listingId,
@@ -38,6 +45,16 @@ router.post('/', authMiddleware, async (req, res) => {
         proposedPrice: proposedPrice ? parseFloat(proposedPrice) : null,
         paymentMethod: paymentMethod || 'COD',
         status: 'PENDING_APPROVAL',
+        deliveryAddress: deliveryAddress || null,
+        deliveryCity: deliveryCity || null,
+        deliveryRegion: deliveryRegion || listing.region || null,
+        recipientName: recipientName || buyer.name || 'Recipient',
+        recipientPhone: recipientPhone || buyer.phone || null,
+        deliveryNotes: deliveryNotes || null,
+        subtotal: subtotal ? parseFloat(subtotal) : parseFloat(totalAmount),
+        deliveryFee: deliveryFee ? parseFloat(deliveryFee) : 0,
+        serviceFee: serviceFee ? parseFloat(serviceFee) : 0,
+        estimatedDeliveryDate: estDate,
       },
       include: {
         listing: true,
@@ -47,7 +64,7 @@ router.post('/', authMiddleware, async (req, res) => {
     });
 
     await logActivity(order.id, buyerId, buyerName, 'BUYER', 'ORDER_PLACED',
-      `Order placed for ${quantityKg}kg of ${listing.grade} cocoa at GHS ${totalAmount}`);
+      `Order placed for ${quantityKg}kg of ${listing.grade} cocoa. Deliver to ${deliveryCity || 'destination'} (${paymentMethod || 'COD'}).`);
 
     res.status(201).json(order);
   } catch (error) {
@@ -61,19 +78,48 @@ router.get('/my-orders', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.userId;
     const role = req.user.role;
+    const { status, search } = req.query;
+
+    let whereClause = role === 'FARMER' ? { farmerId: userId } : { buyerId: userId };
+
+    if (status && status !== 'ALL') {
+      if (status === 'ACTIVE') {
+        whereClause.status = { in: ['PENDING_APPROVAL', 'ACCEPTED', 'PAYMENT_PENDING', 'PAID', 'IN_TRANSIT', 'DELIVERED'] };
+      } else if (status === 'COMPLETED') {
+        whereClause.status = 'COMPLETED';
+      } else if (status === 'CANCELLED') {
+        whereClause.status = { in: ['CANCELLED', 'DISPUTED'] };
+      } else {
+        whereClause.status = status;
+      }
+    }
 
     const orders = await prisma.order.findMany({
-      where: role === 'FARMER' ? { farmerId: userId } : { buyerId: userId },
+      where: whereClause,
       include: {
         listing: true,
         buyer: { select: { id: true, name: true, email: true, phone: true } },
         farmer: { select: { id: true, name: true, email: true, phone: true } },
-        review: true
+        review: true,
+        activities: { orderBy: { createdAt: 'desc' }, take: 1 }
       },
       orderBy: { createdAt: 'desc' }
     });
 
-    res.json(orders);
+    // Client-side text search if query provided
+    let filtered = orders;
+    if (search) {
+      const q = search.toLowerCase();
+      filtered = orders.filter(o => 
+        o.id.toLowerCase().includes(q) ||
+        o.listing.grade.toLowerCase().includes(q) ||
+        (o.buyer && o.buyer.name.toLowerCase().includes(q)) ||
+        (o.farmer && o.farmer.name.toLowerCase().includes(q)) ||
+        (o.deliveryCity && o.deliveryCity.toLowerCase().includes(q))
+      );
+    }
+
+    res.json(filtered);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Server error fetching orders.' });
@@ -110,10 +156,10 @@ router.get('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// UPDATE order status
+// UPDATE order status & logistics details
 router.put('/:id/status', authMiddleware, async (req, res) => {
   try {
-    const { status, note } = req.body;
+    const { status, note, transporterName, transporterPhone, vehicleNumber, trackingNumber, estimatedDeliveryDate } = req.body;
     const orderId = req.params.id;
     const userId = req.user.userId;
     const actorRole = req.user.role;
@@ -145,10 +191,18 @@ router.put('/:id/status', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: `Invalid status: ${status}` });
     }
 
+    // Build update object
+    const updateData = { status };
+    if (transporterName) updateData.transporterName = transporterName;
+    if (transporterPhone) updateData.transporterPhone = transporterPhone;
+    if (vehicleNumber) updateData.vehicleNumber = vehicleNumber;
+    if (trackingNumber) updateData.trackingNumber = trackingNumber;
+    if (estimatedDeliveryDate) updateData.estimatedDeliveryDate = estimatedDeliveryDate;
+
     // Update the order
     const updatedOrder = await prisma.order.update({
       where: { id: orderId },
-      data: { status },
+      data: updateData,
       include: {
         listing: true,
         buyer: { select: { id: true, name: true, email: true, phone: true } },
@@ -166,16 +220,17 @@ router.put('/:id/status', authMiddleware, async (req, res) => {
     }
 
     // Build human-readable activity note
-    const actionLabels = {
-      ACCEPTED: 'Order accepted by farmer',
-      PAYMENT_PENDING: 'Buyer confirmed payment is being arranged (Cash on Delivery)',
-      PAID: 'Farmer confirmed payment received',
-      IN_TRANSIT: 'Cocoa dispatched and is now in transit',
-      DELIVERED: 'Cocoa delivered to buyer',
-      COMPLETED: 'Buyer confirmed receipt — transaction complete',
-      DISPUTED: 'A dispute has been raised — admin has been notified',
-      CANCELLED: 'Order has been cancelled',
-    };
+    let defaultNote = `Status updated to ${status}`;
+    if (status === 'ACCEPTED') defaultNote = 'Order accepted by farmer';
+    else if (status === 'PAYMENT_PENDING') defaultNote = 'Buyer confirmed payment arrangement';
+    else if (status === 'PAID') defaultNote = 'Farmer confirmed payment received';
+    else if (status === 'IN_TRANSIT') {
+      defaultNote = `Dispatched with ${transporterName || 'Transporter'} (${vehicleNumber || 'Truck'}) - Track #${trackingNumber || orderId.slice(0,8)}`;
+    }
+    else if (status === 'DELIVERED') defaultNote = 'Cocoa batch delivered to buyer destination';
+    else if (status === 'COMPLETED') defaultNote = 'Buyer inspected and confirmed receipt — Order Complete';
+    else if (status === 'DISPUTED') defaultNote = 'A dispute was submitted for support review';
+    else if (status === 'CANCELLED') defaultNote = 'Order was cancelled';
 
     await logActivity(
       orderId,
@@ -183,13 +238,61 @@ router.put('/:id/status', authMiddleware, async (req, res) => {
       actorName,
       actorRole,
       status,
-      note || actionLabels[status] || `Status updated to ${status}`
+      note || defaultNote
     );
 
     res.json(updatedOrder);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Server error updating order.' });
+  }
+});
+
+// UPDATE logistics/driver info directly
+router.put('/:id/logistics', authMiddleware, async (req, res) => {
+  try {
+    const { transporterName, transporterPhone, vehicleNumber, trackingNumber, estimatedDeliveryDate } = req.body;
+    const orderId = req.params.id;
+    const userId = req.user.userId;
+
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) return res.status(404).json({ error: 'Order not found.' });
+
+    if (order.farmerId !== userId) {
+      return res.status(403).json({ error: 'Only the farmer/seller can update dispatch logistics.' });
+    }
+
+    const updatedOrder = await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        transporterName,
+        transporterPhone,
+        vehicleNumber,
+        trackingNumber,
+        estimatedDeliveryDate
+      },
+      include: {
+        listing: true,
+        buyer: { select: { id: true, name: true, email: true, phone: true } },
+        farmer: { select: { id: true, name: true, email: true, phone: true } },
+        activities: { orderBy: { createdAt: 'asc' } }
+      }
+    });
+
+    const userObj = await prisma.user.findUnique({ where: { id: userId } });
+    await logActivity(
+      orderId,
+      userId,
+      userObj.name || userObj.email,
+      'FARMER',
+      'LOGISTICS_UPDATED',
+      `Transporter details updated: ${transporterName || 'Driver'} (${vehicleNumber || 'Vehicle'})`
+    );
+
+    res.json(updatedOrder);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error updating logistics.' });
   }
 });
 

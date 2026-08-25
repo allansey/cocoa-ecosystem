@@ -58,6 +58,27 @@ model Order {
   status        String          @default("PENDING_APPROVAL") // PENDING_APPROVAL, ACCEPTED, PAYMENT_PENDING, PAID, IN_TRANSIT, DELIVERED, COMPLETED, CANCELLED, DISPUTED
   paymentMethod String          @default("COD") // MOMO, CARD, CASH, COD
   chatId        String?
+
+  // Delivery & Recipient Details
+  deliveryAddress String?
+  deliveryCity    String?
+  deliveryRegion  String?
+  recipientName   String?
+  recipientPhone  String?
+  deliveryNotes   String?
+
+  // Financial Breakdown
+  subtotal        Float?
+  deliveryFee     Float?         @default(0)
+  serviceFee      Float?         @default(0)
+
+  // Logistics & Transporter Info
+  transporterName String?
+  transporterPhone String?
+  vehicleNumber   String?
+  trackingNumber  String?
+  estimatedDeliveryDate String?
+
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
