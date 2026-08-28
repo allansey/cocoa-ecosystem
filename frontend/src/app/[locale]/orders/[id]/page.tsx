@@ -136,20 +136,30 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
     fetchOrder();
   }, [isAuthenticated, params.id, params.locale]);
 
+  const [orderChatError, setOrderChatError] = useState('');
+
   // Firebase Chat
   useEffect(() => {
     if (!order || !db) return;
     const chatRef = ref(db, `chats/order_${order.id}`);
-    const unsub = onValue(chatRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const parsed: Message[] = Object.keys(data).map((key) => ({ id: key, ...data[key] }))
-          .sort((a, b) => a.timestamp - b.timestamp);
-        setMessages(parsed);
-      } else {
-        setMessages([]);
+    const unsub = onValue(
+      chatRef,
+      (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          const parsed: Message[] = Object.keys(data).map((key) => ({ id: key, ...data[key] }))
+            .sort((a, b) => a.timestamp - b.timestamp);
+          setMessages(parsed);
+        } else {
+          setMessages([]);
+        }
+        setOrderChatError('');
+      },
+      (err) => {
+        console.error('[Firebase Order Chat Error]:', err);
+        setOrderChatError(`Chat Database Error: ${err.message || 'Permission denied or database offline.'}`);
       }
-    });
+    );
     return () => unsub();
   }, [order]);
 
@@ -604,6 +614,11 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
             {activeTab === 'chat' && (
               <>
                 <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 bg-slate-50/50 flex flex-col gap-4">
+                  {orderChatError && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl text-xs font-bold text-center">
+                      ⚠️ {orderChatError}
+                    </div>
+                  )}
                   {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center opacity-40">
                       <MessageCircle size={48} className="text-slate-300 mb-4" />

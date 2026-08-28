@@ -105,16 +105,22 @@ export default function ListingDetailsPage({ params }: { params: { locale: strin
           if (payRes.data?.data?.authorization_url) {
             window.location.href = payRes.data.data.authorization_url;
             return;
+          } else {
+            setError('Mobile Money payment initialization failed. Please try again or select Cash on Delivery.');
+            return;
           }
-        } catch (payErr) {
-          console.warn('Paystack redirect failed, proceeding to order page:', payErr);
+        } catch (payErr: any) {
+          console.error('Payment initialization error:', payErr);
+          const msg = payErr.response?.data?.error || payErr.response?.data?.details || 'Mobile Money payment failed. Please try again or choose Cash on Delivery.';
+          setError(`Payment Error: ${msg}`);
+          return;
         }
       }
 
-      // Redirect straight to Order details / tracking page!
+      // Redirect straight to Order details / tracking page for COD
       router.push(`/${params.locale}/orders/${orderRes.data.id}`);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Order placement failed');
+      setError(err.response?.data?.error || 'Order placement failed. Please check your network connection.');
     } finally {
       setOrdering(false);
     }

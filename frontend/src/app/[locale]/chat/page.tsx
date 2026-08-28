@@ -23,6 +23,7 @@ export default function ChatListPage({ params: { locale } }: { params: { locale:
   
   const [inquiries, setInquiries] = useState<UserChat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -33,18 +34,27 @@ export default function ChatListPage({ params: { locale } }: { params: { locale:
     if (!user || !db) return;
 
     const userChatsRef = ref(db, `userChats/${user.id}`);
-    const unsubscribe = onValue(userChatsRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const chatsList: UserChat[] = Object.keys(data).map(key => ({
-          ...data[key]
-        })).sort((a, b) => b.timestamp - a.timestamp); // sort descending
-        setInquiries(chatsList);
-      } else {
-        setInquiries([]);
+    const unsubscribe = onValue(
+      userChatsRef,
+      (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          const chatsList: UserChat[] = Object.keys(data).map(key => ({
+            ...data[key]
+          })).sort((a, b) => b.timestamp - a.timestamp); // sort descending
+          setInquiries(chatsList);
+        } else {
+          setInquiries([]);
+        }
+        setError('');
+        setLoading(false);
+      },
+      (err) => {
+        console.error('[Firebase Chat List Error]:', err);
+        setError(`Chat Database Error: ${err.message || 'Permission denied or database offline.'}`);
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    );
 
     return () => unsubscribe();
   }, [isAuthenticated, router, locale, user]);
@@ -62,6 +72,12 @@ export default function ChatListPage({ params: { locale } }: { params: { locale:
           <p className="text-slate-500 font-medium mt-2">Manage your ongoing negotiations and messages.</p>
         </div>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl mb-6 text-sm font-medium">
+          ⚠️ {error}
+        </div>
+      )}
 
       <div className="bg-white border border-slate-200 rounded-3xl shadow-lg overflow-hidden">
         <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-4">

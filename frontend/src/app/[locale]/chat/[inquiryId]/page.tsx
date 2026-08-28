@@ -25,6 +25,8 @@ export default function ChatPage({ params }: { params: { locale: string, inquiry
   const scrollRef = useRef<HTMLDivElement>(null);
   const [chatMeta, setChatMeta] = useState<{ recipientId: string, title: string, recipientName: string } | null>(null);
 
+  const [chatError, setChatError] = useState('');
+
   useEffect(() => {
     if (!isAuthenticated) {
       router.push(`/${params.locale}/auth/login`);
@@ -33,6 +35,7 @@ export default function ChatPage({ params }: { params: { locale: string, inquiry
 
     if (!db) {
       console.warn('Firebase Realtime Database is not configured.');
+      setChatError('Firebase Realtime Database is not configured.');
       setLoading(false);
       return;
     }
@@ -70,19 +73,28 @@ export default function ChatPage({ params }: { params: { locale: string, inquiry
     if (user) fetchMeta();
 
     const chatRef = ref(db, `chats/${params.inquiryId}`);
-    const unsubscribe = onValue(chatRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const parsed: Message[] = Object.keys(data).map((key) => ({
-          id: key,
-          ...data[key],
-        })).sort((a, b) => a.timestamp - b.timestamp);
-        setMessages(parsed);
-      } else {
-        setMessages([]);
+    const unsubscribe = onValue(
+      chatRef,
+      (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          const parsed: Message[] = Object.keys(data).map((key) => ({
+            id: key,
+            ...data[key],
+          })).sort((a, b) => a.timestamp - b.timestamp);
+          setMessages(parsed);
+        } else {
+          setMessages([]);
+        }
+        setChatError('');
+        setLoading(false);
+      },
+      (err) => {
+        console.error('[Firebase Inquiry Chat Error]:', err);
+        setChatError(`Database Connection Error: ${err.message || 'Permission denied or database offline.'}`);
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    );
 
     return () => unsubscribe();
   }, [params.inquiryId, isAuthenticated, router, params.locale, user]);
@@ -175,6 +187,12 @@ export default function ChatPage({ params }: { params: { locale: string, inquiry
           ref={scrollRef}
           className="flex-grow p-6 overflow-y-auto bg-slate-50/50 flex flex-col gap-4 scroll-smooth"
         >
+          {chatError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl text-xs font-bold text-center">
+              ⚠️ {chatError}
+            </div>
+          )}
+
           {loading ? (
             <div className="flex flex-col justify-center items-center h-full gap-4">
               <Loader2 className="animate-spin text-amber-500" size={40} />
