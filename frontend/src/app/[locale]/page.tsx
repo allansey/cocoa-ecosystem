@@ -31,25 +31,25 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
   return (
     <div className="flex flex-col items-center w-full bg-slate-50/40 text-slate-900 overflow-x-hidden">
       
-      {/* 1. HERO SECTION WITH RICH VISUALS & LIVE MARKET TICKER */}
-      <section className="relative w-full overflow-hidden bg-gradient-to-b from-amber-950 via-amber-900 to-slate-950 text-white py-16 sm:py-24 lg:py-32 px-4 sm:px-6 lg:px-8">
+      {/* 1. HERO SECTION WITH COCOA IMAGES & LIVE MARKET TICKER */}
+      <section className="relative w-full overflow-hidden bg-gradient-to-b from-amber-950 via-amber-900 to-slate-950 text-white py-16 sm:py-20 lg:py-28 px-4 sm:px-6 lg:px-8">
         
-        {/* Background Ambient Glows & Image Overlay */}
-        <div className="absolute inset-0 z-0 opacity-35 pointer-events-none">
+        {/* Background Ambient Cocoa Imagery & Dark Vignette */}
+        <div className="absolute inset-0 z-0 opacity-25 pointer-events-none">
           <Image 
-            src="/images/hero-cocoa.jpg" 
-            alt="Ghana Cocoa Harvest" 
+            src="/images/hero-pods.jpg" 
+            alt="Ghana Cocoa Pods" 
             fill 
-            className="object-cover scale-105"
+            className="object-cover scale-105 filter blur-[1px]"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-amber-950/85 to-amber-950/60" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-amber-950/90 to-amber-950/70" />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-16">
+        <div className="relative z-10 max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-10 lg:gap-14">
           
           {/* Hero Left Content */}
-          <div className="flex-1 text-center lg:text-left space-y-6 max-w-2xl">
+          <div className="flex-1 text-center lg:text-left space-y-5 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-bold backdrop-blur-md shadow-xs">
               <Sprout size={15} className="text-amber-400" />
               <span>COCOBOD Grade-Certified Digital Exchange</span>
@@ -83,7 +83,7 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
             </div>
 
             {/* Trust Badges */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-5 pt-4 text-xs text-amber-200/80 font-medium">
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-5 pt-3 text-xs text-amber-200/80 font-medium">
               <div className="flex items-center gap-1.5">
                 <ShieldCheck size={16} className="text-emerald-400 shrink-0" />
                 <span>100% MoMo Escrow Protection</span>
@@ -95,17 +95,56 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
             </div>
           </div>
 
-          {/* Hero Right: Live Market Card & Quality Passport Mockup */}
-          <div className="w-full lg:w-[420px] shrink-0 space-y-4">
+          {/* Hero Right: Dual Cocoa Showcase Card (Pods + Dried Beans + Live Price) */}
+          <div className="w-full lg:w-[460px] shrink-0 space-y-4">
             
-            {/* Live Price Widget */}
-            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-2xl text-white relative overflow-hidden">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <span className="text-[10px] font-bold text-amber-300 uppercase tracking-widest block">Ghana Exchange Rate</span>
-                  <h3 className="text-base font-bold text-white mt-0.5">COCOBOD Standard Price</h3>
+            {/* Top Cocoa Pods Visual Card */}
+            <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-white/20 bg-slate-900 group">
+              <div className="h-52 relative">
+                <Image 
+                  src="/images/hero-pods.jpg" 
+                  alt="Harvested Golden Cocoa Pods" 
+                  fill 
+                  className="object-cover group-hover:scale-105 transition-transform duration-700"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+                
+                <div className="absolute top-3.5 left-3.5 bg-amber-500/90 backdrop-blur-md text-white text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-1.5">
+                  <Award size={13} />
+                  <span>Grade A Single Origin</span>
                 </div>
-                <span className="text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2.5 py-1 rounded-full flex items-center gap-1">
+
+                <div className="absolute top-3.5 right-3.5 bg-emerald-500/90 backdrop-blur-md text-white text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                  <span>IoT Moisture 6.8%</span>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-950/90 backdrop-blur-md flex items-center justify-between border-t border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl overflow-hidden relative shrink-0 border border-white/20">
+                    <Image src="/images/hero-beans.jpg" alt="Sun Dried Cocoa Beans" fill className="object-cover" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white">Sun-Dried Fermented Beans</h4>
+                    <p className="text-[11px] text-amber-200/80 font-medium">Ashanti & Western Regions</p>
+                  </div>
+                </div>
+
+                <span className="text-[11px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-500/30 px-2.5 py-1 rounded-xl">
+                  AI Scan 99.4%
+                </span>
+              </div>
+            </div>
+
+            {/* Bottom Live Price Widget Card */}
+            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-5 shadow-xl text-white relative overflow-hidden">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <span className="text-[10px] font-bold text-amber-300 uppercase tracking-widest block">Ghana Cocoa Exchange Rate</span>
+                  <h3 className="text-sm font-bold text-white mt-0.5">COCOBOD Benchmark Price</h3>
+                </div>
+                <span className="text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   LIVE
                 </span>
@@ -124,20 +163,9 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
                   <span className="text-sm font-bold text-white">~2,240 GHS</span>
                 </div>
                 <div className="bg-white/5 rounded-xl p-2.5">
-                  <span className="text-amber-300/80 text-[10px] font-bold uppercase block">Grade A Premium</span>
-                  <span className="text-sm font-bold text-emerald-300">+5.0% Index</span>
+                  <span className="text-amber-300/80 text-[10px] font-bold uppercase block">Escrow Protected</span>
+                  <span className="text-sm font-bold text-emerald-300">MoMo Verified</span>
                 </div>
-              </div>
-            </div>
-
-            {/* Quick Passport Highlight */}
-            <div className="bg-gradient-to-r from-amber-600/30 to-amber-700/20 backdrop-blur-md border border-amber-400/30 rounded-2xl p-4 flex items-center gap-3 text-white">
-              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 font-bold shadow-xs">
-                <Award size={20} />
-              </div>
-              <div className="text-xs">
-                <strong className="block text-amber-200 font-bold">Digital Quality Passport</strong>
-                <span className="text-white/80">Every cocoa batch is certified with moisture & cut tests.</span>
               </div>
             </div>
 
