@@ -3,8 +3,8 @@ import { useState, useRef, useEffect } from 'react';
 import { Camera, Upload, Loader2, ArrowLeft, Brain, Volume2, ShieldCheck, AlertCircle, Mic, Square, CheckCircle, Circle, Bell } from 'lucide-react';
 import Link from 'next/link';
 
-const IMAGE_SERVER = "http://localhost:5002";
-const VOICE_SERVER = "http://localhost:5001";
+const IMAGE_SERVER = process.env.NEXT_PUBLIC_AI_IMAGE_SERVER_URL || "http://localhost:5002";
+const VOICE_SERVER = process.env.NEXT_PUBLIC_VOICE_SERVER_URL || "http://localhost:5001";
 
 interface Detection {
   status: string;
@@ -58,31 +58,44 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const sseAlertAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Connect to SSE stream for real-time push alerts
+  // Connect to SSE stream for real-time push alerts if voice server is reachable
   useEffect(() => {
     let es: EventSource | null = null;
-    try {
-      es = new EventSource(`${VOICE_SERVER}/stream`);
-      es.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'detection') {
-            setSseAlert(data);
-            // Auto-play alert audio
-            if (data.audio_base64 && sseAlertAudioRef.current) {
-              sseAlertAudioRef.current.src = `data:${data.audio_mime};base64,${data.audio_base64}`;
-              sseAlertAudioRef.current.play().catch(() => {});
+    let cancelled = false;
+
+    const connectSSE = async () => {
+      try {
+        const res = await fetch(`${VOICE_SERVER}/health`, { method: 'GET', signal: AbortSignal.timeout(2000) });
+        if (!res.ok || cancelled) return;
+
+        es = new EventSource(`${VOICE_SERVER}/stream`);
+        es.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'detection') {
+              setSseAlert(data);
+              // Auto-play alert audio
+              if (data.audio_base64 && sseAlertAudioRef.current) {
+                sseAlertAudioRef.current.src = `data:${data.audio_mime};base64,${data.audio_base64}`;
+                sseAlertAudioRef.current.play().catch(() => {});
+              }
             }
-          }
-        } catch { /* ignore parse errors */ }
-      };
-      es.onerror = () => {
-        console.warn('SSE connection lost, will retry...');
-      };
-    } catch {
-      console.warn('SSE not available');
-    }
-    return () => { es?.close(); };
+          } catch { /* ignore parse errors */ }
+        };
+        es.onerror = () => {
+          es?.close();
+        };
+      } catch {
+        // Voice server is currently offline; silently skip SSE stream
+      }
+    };
+
+    connectSSE();
+
+    return () => {
+      cancelled = true;
+      es?.close();
+    };
   }, []);
 
   const handleCapture = (e: React.ChangeEvent<HTMLInputElement>) => {

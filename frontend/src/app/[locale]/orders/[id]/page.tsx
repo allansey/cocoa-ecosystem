@@ -1,15 +1,16 @@
 'use client';
+
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import api from '@/lib/api';
 import { db } from '@/firebase';
-import { ref, push, onValue, serverTimestamp, update } from 'firebase/database';
+import { ref, push, onValue, update } from 'firebase/database';
 import {
   ArrowLeft, Send, CheckCircle2, Package, Truck, Clock, CreditCard,
   AlertTriangle, MessageCircle, ShieldAlert, MapPin, Phone, User,
-  Banknote, ChevronRight, Activity
+  Banknote, ChevronRight, Activity, Star, Camera, ExternalLink, Award, Sparkles
 } from 'lucide-react';
 
 interface Order {
@@ -33,6 +34,14 @@ interface Order {
   vehicleNumber?: string;
   trackingNumber?: string;
   estimatedDeliveryDate?: string;
+  loadingProofPhoto?: string;
+  weighbridgeReceipt?: string;
+  review?: {
+    id: string;
+    rating: number;
+    comment: string;
+    badges: string;
+  };
   createdAt: string;
   listing: { id: string; grade: string; region: string; priceGhsPerTonne: number; photo?: string };
   buyer: { id: string; name: string; email: string; phone: string };
@@ -68,35 +77,36 @@ const STATUS_STEPS = [
 ];
 
 const ACTION_LABELS: Record<string, string> = {
-  ORDER_PLACED: 'Order Placed',
+  CREATED: 'Order Placed',
   ACCEPTED: 'Order Accepted',
   PAYMENT_PENDING: 'Payment Arranged',
-  PAID: 'Payment Confirmed',
-  IN_TRANSIT: 'Dispatched',
-  DELIVERED: 'Delivered',
-  COMPLETED: 'Completed',
+  PAID: 'Payment Received',
+  IN_TRANSIT: 'Batch Dispatched',
+  LOGISTICS_UPDATED: 'Driver Assigned',
+  DELIVERED: 'Batch Delivered',
+  COMPLETED: 'Order Completed',
   DISPUTED: 'Dispute Raised',
-  CANCELLED: 'Cancelled',
-  LOGISTICS_UPDATED: 'Logistics Updated',
+  CANCELLED: 'Order Cancelled',
+  REVIEWED: 'Rated & Reviewed'
 };
 
 const ACTION_COLORS: Record<string, string> = {
-  ORDER_PLACED: 'bg-blue-100 text-blue-700',
-  ACCEPTED: 'bg-emerald-100 text-emerald-700',
-  PAYMENT_PENDING: 'bg-indigo-100 text-indigo-700',
-  PAID: 'bg-green-100 text-green-700',
-  IN_TRANSIT: 'bg-amber-100 text-amber-700',
-  DELIVERED: 'bg-teal-100 text-teal-700',
-  COMPLETED: 'bg-emerald-100 text-emerald-700',
-  DISPUTED: 'bg-red-100 text-red-700',
-  CANCELLED: 'bg-slate-100 text-slate-700',
-  LOGISTICS_UPDATED: 'bg-purple-100 text-purple-700',
+  CREATED: 'bg-blue-50 text-blue-700 border-blue-200',
+  ACCEPTED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  PAYMENT_PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
+  PAID: 'bg-green-50 text-green-700 border-green-200',
+  IN_TRANSIT: 'bg-purple-50 text-purple-700 border-purple-200',
+  LOGISTICS_UPDATED: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  DELIVERED: 'bg-teal-50 text-teal-700 border-teal-200',
+  COMPLETED: 'bg-emerald-50 text-emerald-800 border-emerald-300',
+  DISPUTED: 'bg-red-50 text-red-700 border-red-200',
+  CANCELLED: 'bg-slate-50 text-slate-700 border-slate-200',
+  REVIEWED: 'bg-amber-50 text-amber-800 border-amber-300'
 };
 
-export default function OrderDetailsPage({ params }: { params: { locale: string; id: string } }) {
-  const { user, isAuthenticated } = useAuthStore();
+export default function OrderDetailsPage({ params }: { params: { locale: string, id: string } }) {
+  const { user, isAuthenticated, _hasHydrated } = useAuthStore();
   const router = useRouter();
-
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -109,9 +119,18 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
   const [driverPhone, setDriverPhone] = useState('');
   const [truckNumber, setTruckNumber] = useState('');
   const [trackingRef, setTrackingRef] = useState('');
+  const [loadingPhotoBase64, setLoadingPhotoBase64] = useState<string | null>(null);
+
+  // Review Modal State
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [orderChatError, setOrderChatError] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const fetchOrder = async () => {
@@ -123,6 +142,7 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
         setDriverPhone(res.data.transporterPhone || '');
         setTruckNumber(res.data.vehicleNumber || '');
         setTrackingRef(res.data.trackingNumber || `TRK-${params.id.slice(0, 8).toUpperCase()}`);
+        if (res.data.loadingProofPhoto) setLoadingPhotoBase64(res.data.loadingProofPhoto);
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load order');
@@ -132,23 +152,35 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
   };
 
   useEffect(() => {
-    if (!isAuthenticated) { router.push(`/${params.locale}/auth/login`); return; }
+    if (!_hasHydrated) return;
+    if (!isAuthenticated) {
+      router.push(`/${params.locale}/auth/login`);
+      return;
+    }
     fetchOrder();
-  }, [isAuthenticated, params.id, params.locale]);
+  }, [params.id, isAuthenticated, _hasHydrated, router, params.locale]);
 
-  const [orderChatError, setOrderChatError] = useState('');
-
-  // Firebase Chat
+  // Real-time Chat Sync
   useEffect(() => {
-    if (!order || !db) return;
-    const chatRef = ref(db, `chats/order_${order.id}`);
-    const unsub = onValue(
+    if (!_hasHydrated || !isAuthenticated || !order) return;
+
+    if (!db) {
+      setOrderChatError('Firebase Realtime Database is not configured.');
+      return;
+    }
+
+    const chatId = `order_${order.id}`;
+    const chatRef = ref(db, `chats/${chatId}`);
+
+    const unsubscribe = onValue(
       chatRef,
       (snapshot) => {
         const data = snapshot.val();
         if (data) {
-          const parsed: Message[] = Object.keys(data).map((key) => ({ id: key, ...data[key] }))
-            .sort((a, b) => a.timestamp - b.timestamp);
+          const parsed: Message[] = Object.keys(data).map((key) => ({
+            id: key,
+            ...data[key],
+          })).sort((a, b) => a.timestamp - b.timestamp);
           setMessages(parsed);
         } else {
           setMessages([]);
@@ -157,44 +189,42 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
       },
       (err) => {
         console.error('[Firebase Order Chat Error]:', err);
-        setOrderChatError(`Chat Database Error: ${err.message || 'Permission denied or database offline.'}`);
+        setOrderChatError(`Chat Offline: ${err.message || 'Error'}`);
       }
     );
-    return () => unsub();
-  }, [order]);
+
+    return () => unsubscribe();
+  }, [order?.id, isAuthenticated, _hasHydrated]);
 
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages]);
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, activeTab]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !user || !order || !db) return;
-    
+
     const msgText = newMessage.trim();
     setNewMessage('');
-    
+
     try {
       const chatId = `order_${order.id}`;
       const chatRef = ref(db, `chats/${chatId}`);
-      const newMsgRef = push(chatRef);
-      const timestamp = serverTimestamp();
-      
-      const isFarmer = user.id === order.farmer.id;
-      const recipientId = isFarmer ? order.buyer.id : order.farmer.id;
-      const recipientName = isFarmer ? order.buyer.name : order.farmer.name;
-      
-      const updates: any = {};
-      
-      // Update chat thread
-      updates[`chats/${chatId}/${newMsgRef.key}`] = {
-        text: msgText,
-        senderId: user.id,
-        senderName: user.name || user.email?.split('@')[0] || 'User',
-        timestamp,
-      };
+      const timestamp = Date.now();
 
-      // Update current user's inbox
+      await push(chatRef, {
+        senderId: user.id,
+        senderName: user.name || user.email.split('@')[0],
+        text: msgText,
+        timestamp,
+      });
+
+      const recipientId = user.id === order.farmer.id ? order.buyer.id : order.farmer.id;
+      const recipientName = user.id === order.farmer.id ? order.buyer.name : order.farmer.name;
+
+      const updates: Record<string, any> = {};
       updates[`userChats/${user.id}/${chatId}`] = {
         id: chatId,
         title: `Order #${order.id.slice(0, 8).toUpperCase()}`,
@@ -205,7 +235,6 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
         unread: false
       };
 
-      // Update recipient's inbox
       updates[`userChats/${recipientId}/${chatId}`] = {
         id: chatId,
         title: `Order #${order.id.slice(0, 8).toUpperCase()}`,
@@ -230,6 +259,7 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
         payload.transporterPhone = logisticsData.driverPhone;
         payload.vehicleNumber = logisticsData.truckNumber;
         payload.trackingNumber = logisticsData.trackingRef;
+        if (logisticsData.loadingProofPhoto) payload.loadingProofPhoto = logisticsData.loadingProofPhoto;
       }
       const res = await api.put(`/orders/${order.id}/status`, payload);
       setOrder(res.data);
@@ -238,6 +268,27 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
       alert(err.response?.data?.error || 'Failed to update status');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!order) return;
+    setSubmittingReview(true);
+    try {
+      await api.post('/reviews', {
+        orderId: order.id,
+        rating: reviewRating,
+        comment: reviewComment,
+        badges: selectedBadges
+      });
+      setShowReviewModal(false);
+      fetchOrder();
+      alert('Thank you! Your verified review and trust badges have been published.');
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to submit review');
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -259,51 +310,78 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
   const isCancelled = order.status === 'CANCELLED';
   const isCompleted = order.status === 'COMPLETED';
   const isTerminal = isDisputed || isCancelled || isCompleted;
+
   const currentStepIndex = STATUS_STEPS.findIndex(s => s.id === order.status);
   const otherParty = isFarmer ? order.buyer : order.farmer;
   const otherRole = isFarmer ? 'Buyer' : 'Farmer';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-amber-50/30 pt-8 pb-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+    <div className="min-h-screen bg-slate-50/50 py-8 px-4 sm:px-6">
+      <div className="max-w-6xl mx-auto space-y-6">
 
-        <Link href={`/${params.locale}/orders`} className="inline-flex items-center text-amber-700 hover:text-amber-900 font-bold mb-8 bg-white px-4 py-2 rounded-full shadow-sm border border-amber-100 transition-all hover:shadow-md">
-          <ArrowLeft size={16} className="mr-2" /> Back to Orders Hub
-        </Link>
+        {/* Back Button & Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <Link href={`/${params.locale}/orders`} className="inline-flex items-center text-slate-500 hover:text-slate-800 font-semibold transition-colors">
+            <div className="p-2 bg-white rounded-full shadow-xs mr-2 border border-slate-100">
+              <ArrowLeft size={16} />
+            </div>
+            Back to Orders
+          </Link>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-400">Order ID:</span>
+            <span className="font-mono text-xs font-bold bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg">
+              #{order.id.slice(0, 8).toUpperCase()}
+            </span>
+          </div>
+        </div>
 
+        {/* Top Summary Banner */}
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 shrink-0 border border-amber-100">
+              <Package size={28} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl font-black text-slate-900">{order.listing.grade} Cocoa Beans</h1>
+                <span className="text-xs font-bold bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full">
+                  {order.listing.region} Region
+                </span>
+              </div>
+              <p className="text-slate-500 text-xs mt-1">
+                Ordered on {new Date(order.createdAt).toLocaleDateString('en-GH', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-6 self-stretch md:self-auto justify-between md:justify-end border-t md:border-t-0 pt-4 md:pt-0 border-slate-100">
+            <div>
+              <p className="text-xs font-bold text-slate-400">Quantity</p>
+              <p className="text-xl font-black text-slate-900">{order.quantityKg.toLocaleString()} kg</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-bold text-slate-400">Grand Total</p>
+              <p className="text-2xl font-black text-emerald-600">GHS {order.totalAmount.toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* MAIN GRID: 2 COLUMNS */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
-          {/* LEFT COLUMN — Order Info + Actions */}
-          <div className="lg:col-span-2 flex flex-col gap-5">
+          {/* LEFT COLUMN — Tracking, Details & Actions (2 cols on lg) */}
+          <div className="lg:col-span-2 space-y-6">
 
-            {/* Order Header Card */}
-            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-              <div className={`p-6 ${isDisputed ? 'bg-red-600' : isCancelled ? 'bg-slate-600' : isCompleted ? 'bg-emerald-600' : 'bg-gradient-to-br from-amber-700 to-amber-600'} text-white`}>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-widest text-white/60 mb-1">Order Reference</p>
-                    <h1 className="text-2xl font-black tracking-tight">#{order.id.slice(0, 8).toUpperCase()}</h1>
-                  </div>
-                  {order.estimatedDeliveryDate && (
-                    <span className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">
-                      ETA: {new Date(order.estimatedDeliveryDate).toLocaleDateString('en-GH', { day: 'numeric', month: 'short' })}
-                    </span>
-                  )}
-                </div>
-                <p className="text-white/80 text-sm mt-2">
-                  {order.quantityKg.toLocaleString()}kg of {order.listing.grade} Cocoa · {order.deliveryCity || order.listing.region}
-                </p>
-              </div>
-
-              {/* Items & Fees Receipt Breakdown */}
-              <div className="p-6 space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500 font-medium">Cocoa Subtotal</span>
+            {/* Financial Breakdown Card */}
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 space-y-3">
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Financial Summary</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-medium">Cocoa Batch ({order.quantityKg} kg)</span>
                   <span className="font-bold text-slate-800">GHS {(order.subtotal || order.totalAmount).toLocaleString()}</span>
                 </div>
                 {order.deliveryFee ? (
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-500 font-medium">Logistics & Transport Fee</span>
+                    <span className="text-slate-500 font-medium">Logistics & Haulage</span>
                     <span className="font-bold text-slate-800">GHS {order.deliveryFee.toLocaleString()}</span>
                   </div>
                 ) : null}
@@ -358,22 +436,57 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
               </div>
             </div>
 
-            {/* Driver / Transporter Dispatch Card */}
-            {(order.transporterName || order.status === 'IN_TRANSIT' || order.status === 'DELIVERED') && (
-              <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-3xl p-6 shadow-md space-y-3">
+            {/* Driver / Transporter Dispatch Card & Visual Proof */}
+            {(order.transporterName || order.status === 'IN_TRANSIT' || order.status === 'DELIVERED' || order.status === 'COMPLETED') && (
+              <div className="bg-gradient-to-br from-slate-900 via-slate-850 to-slate-800 text-white rounded-3xl p-6 shadow-md space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">Assigned Driver & Transport</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">Assigned Driver & Logistics</span>
                   <Truck size={18} className="text-amber-400" />
                 </div>
+                
                 <div className="space-y-1">
-                  <p className="font-black text-lg text-white">{order.transporterName || 'Transporter Assigned'}</p>
-                  <p className="text-xs text-slate-300">Vehicle / Truck Plate: <span className="font-bold text-white">{order.vehicleNumber || 'Pending'}</span></p>
-                  <p className="text-xs text-slate-300">Tracking Reference: <span className="font-bold text-amber-300">#{order.trackingNumber || order.id.slice(0, 8).toUpperCase()}</span></p>
+                  <p className="font-black text-lg text-white">{order.transporterName || 'Haulage Driver Assigned'}</p>
+                  <p className="text-xs text-slate-300">Truck / Plate: <span className="font-bold text-white">{order.vehicleNumber || 'Pending'}</span></p>
+                  <p className="text-xs text-slate-300">Tracking Code: <span className="font-bold text-amber-300">#{order.trackingNumber || order.id.slice(0, 8).toUpperCase()}</span></p>
                 </div>
+
+                {/* 1-Tap Transporter Actions */}
                 {order.transporterPhone && (
-                  <a href={`tel:${order.transporterPhone}`} className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all mt-2">
-                    <Phone size={14} /> Call Driver Now
-                  </a>
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <a 
+                      href={`tel:${order.transporterPhone}`} 
+                      className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-xs"
+                    >
+                      <Phone size={13} /> Direct Call
+                    </a>
+                    <a 
+                      href={`https://wa.me/${order.transporterPhone.replace(/[^0-9]/g, '')}?text=Hello%20${encodeURIComponent(order.transporterName || 'Driver')},%20inquiring%20about%20Cocoa%20Order%20%23${order.id.slice(0, 8).toUpperCase()}`}
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-xs"
+                    >
+                      <MessageCircle size={13} /> WhatsApp
+                    </a>
+                  </div>
+                )}
+
+                {/* Loading Proof Photo Preview (If Present) */}
+                {order.loadingProofPhoto && (
+                  <div className="pt-2 border-t border-slate-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] font-black uppercase text-amber-300 flex items-center gap-1">
+                        <Camera size={12} /> Loading & Weigh Photo Proof
+                      </span>
+                      <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold">
+                        Verified
+                      </span>
+                    </div>
+                    <img 
+                      src={order.loadingProofPhoto} 
+                      alt="Proof of Loading" 
+                      className="w-full h-32 object-cover rounded-xl border border-slate-700 shadow-xs"
+                    />
+                  </div>
                 )}
               </div>
             )}
@@ -385,11 +498,11 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
                 <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-700 font-black text-lg">
                   {otherParty.name.charAt(0).toUpperCase()}
                 </div>
-                <div>
+                <div className="space-y-0.5">
                   <p className="font-black text-slate-800">{otherParty.name}</p>
-                  <p className="text-sm text-slate-500">{otherParty.email}</p>
+                  <p className="text-xs text-slate-500">{otherParty.email}</p>
                   {otherParty.phone && (
-                    <a href={`tel:${otherParty.phone}`} className="flex items-center gap-1 text-sm text-amber-700 font-bold mt-1 hover:underline">
+                    <a href={`tel:${otherParty.phone}`} className="inline-flex items-center gap-1 text-xs text-amber-600 font-bold hover:underline">
                       <Phone size={12} /> {otherParty.phone}
                     </a>
                   )}
@@ -542,10 +655,49 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
             )}
 
             {isCompleted && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-6 text-center">
-                <CheckCircle2 className="mx-auto text-emerald-500 mb-3" size={36} />
-                <p className="font-black text-emerald-800 text-lg">Transaction Completed</p>
-                <p className="text-xs text-emerald-600 mt-1">Cocoa inspected and receipt confirmed.</p>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-6 text-center space-y-4">
+                <CheckCircle2 className="mx-auto text-emerald-500" size={40} />
+                <div>
+                  <p className="font-black text-emerald-900 text-lg">Transaction Completed</p>
+                  <p className="text-xs text-emerald-700 mt-0.5">Cocoa inspected, weigh confirmed & payment settled.</p>
+                </div>
+
+                {order.review ? (
+                  <div className="bg-white rounded-2xl p-4 border border-emerald-100 shadow-xs text-left">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-black text-slate-800">Your Verified Rating:</span>
+                      <div className="flex text-amber-500">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star 
+                            key={i} 
+                            size={14} 
+                            className={i < order.review!.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'} 
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    {order.review.comment && (
+                      <p className="text-xs text-slate-600 italic">"{order.review.comment}"</p>
+                    )}
+                    {order.review.badges && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {order.review.badges.split(',').map((b, i) => (
+                          <span key={i} className="text-[10px] font-bold bg-amber-50 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200">
+                            ⭐ {b.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => setShowReviewModal(true)}
+                    className="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white font-black py-3 rounded-2xl text-xs shadow-md shadow-amber-600/20 flex items-center justify-center gap-1.5 transition-all hover:scale-[1.02] active:scale-95"
+                  >
+                    <Star size={16} className="fill-white" />
+                    <span>Rate Your Experience & Award Badges</span>
+                  </button>
+                )}
               </div>
             )}
 
@@ -597,10 +749,8 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
                                 {ACTION_LABELS[act.action] || act.action}
                               </span>
                             </div>
-                            {act.note && <p className="text-sm text-slate-500 mt-1">{act.note}</p>}
-                            <p className="text-[11px] text-slate-400 mt-1">
-                              {new Date(act.createdAt).toLocaleString('en-GH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                            </p>
+                            {act.note && <p className="text-xs text-slate-600 mt-1 font-medium bg-slate-50 p-2.5 rounded-xl border border-slate-100">{act.note}</p>}
+                            <p className="text-[10px] text-slate-400 mt-1">{new Date(act.createdAt).toLocaleString()}</p>
                           </div>
                         </div>
                       ))}
@@ -613,9 +763,9 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
             {/* Chat Tab */}
             {activeTab === 'chat' && (
               <>
-                <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 bg-slate-50/50 flex flex-col gap-4">
+                <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col bg-slate-50/50">
                   {orderChatError && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl text-xs font-bold text-center">
+                    <div className="bg-amber-50 text-amber-800 text-xs p-3 rounded-xl border border-amber-200">
                       ⚠️ {orderChatError}
                     </div>
                   )}
@@ -666,14 +816,14 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
         </div>
       </div>
 
-      {/* FARMER DISPATCH LOGISTICS MODAL */}
+      {/* FARMER DISPATCH LOGISTICS & PHOTO PROOF MODAL */}
       {showDispatchModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-5">
             <div className="flex justify-between items-center pb-3 border-b border-slate-100">
               <div>
                 <span className="text-xs font-black uppercase tracking-widest text-amber-600">Dispatch Batch</span>
-                <h3 className="text-xl font-black text-slate-900">Assign Driver & Vehicle Details</h3>
+                <h3 className="text-xl font-black text-slate-900">Assign Driver & Loading Proof</h3>
               </div>
               <button onClick={() => setShowDispatchModal(false)} className="text-slate-400 hover:text-slate-600 text-2xl font-black">
                 &times;
@@ -682,7 +832,10 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
 
             <form onSubmit={(e) => {
               e.preventDefault();
-              updateStatus('IN_TRANSIT', undefined, { driverName, driverPhone, truckNumber, trackingRef });
+              updateStatus('IN_TRANSIT', undefined, { 
+                driverName, driverPhone, truckNumber, trackingRef, 
+                loadingProofPhoto: loadingPhotoBase64 
+              });
             }} className="space-y-4">
 
               <div>
@@ -690,35 +843,75 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
                 <input 
                   type="text" value={driverName} onChange={e => setDriverName(e.target.value)} required
                   placeholder="e.g. Kwame Boateng (VIP Haulage)"
-                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none font-medium"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Driver Phone Number</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Driver Phone Number (Ghana)</label>
                 <input 
                   type="tel" value={driverPhone} onChange={e => setDriverPhone(e.target.value)} required
                   placeholder="e.g. +233 24 123 4567"
-                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none font-medium"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Vehicle / Truck Plate</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Vehicle Plate</label>
                   <input 
                     type="text" value={truckNumber} onChange={e => setTruckNumber(e.target.value)} required
                     placeholder="e.g. AS 8492-23"
-                    className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                    className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Tracking Code / Ref</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Tracking Reference</label>
                   <input 
                     type="text" value={trackingRef} onChange={e => setTrackingRef(e.target.value)} required
                     placeholder="e.g. TRK-9842"
-                    className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                    className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none font-medium"
                   />
+                </div>
+              </div>
+
+              {/* Photo Proof of Loading Upload */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                  <span>Photo Proof of Loading & Weighbridge</span>
+                  <span className="text-[10px] text-amber-600 font-bold">Recommended</span>
+                </label>
+                <div className="border-2 border-dashed border-slate-200 rounded-2xl p-3 text-center bg-slate-50">
+                  {loadingPhotoBase64 ? (
+                    <div className="relative">
+                      <img src={loadingPhotoBase64} alt="Loading Proof" className="w-full h-24 object-cover rounded-xl mb-2" />
+                      <button 
+                        type="button" 
+                        onClick={() => setLoadingPhotoBase64(null)}
+                        className="text-xs font-bold text-red-600 hover:underline"
+                      >
+                        Remove / Replace Photo
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="cursor-pointer block py-2">
+                      <Camera size={22} className="mx-auto text-amber-600 mb-1" />
+                      <span className="text-xs font-bold text-slate-600">Snap or upload truck loading photo</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => setLoadingPhotoBase64(reader.result as string);
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  )}
                 </div>
               </div>
 
@@ -728,6 +921,113 @@ export default function OrderDetailsPage({ params }: { params: { locale: string;
                 </button>
                 <button type="submit" disabled={actionLoading} className="w-2/3 bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-amber-600/20 text-xs flex items-center justify-center gap-2">
                   <Truck size={16} /> Confirm Dispatch & Start Transit
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 5-STAR RATING & TRUST REVIEW MODAL */}
+      {showReviewModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-5 animate-in fade-in">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center">
+                  <Award size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">Review & Trust Badge</h3>
+                  <p className="text-xs text-slate-500 font-medium">Rate {otherRole} {otherParty.name}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowReviewModal(false)} className="text-slate-400 hover:text-slate-600 text-2xl font-black">
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleReviewSubmit} className="space-y-4">
+              {/* Star Rating Selector */}
+              <div className="text-center py-2">
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-2">Overall Rating</label>
+                <div className="flex justify-center gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setReviewRating(star)}
+                      className="p-1.5 transition-transform hover:scale-125 focus:outline-none"
+                    >
+                      <Star 
+                        size={32} 
+                        className={star <= reviewRating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'} 
+                      />
+                    </button>
+                  ))}
+                </div>
+                <span className="text-xs font-black text-amber-700 mt-1 block">
+                  {reviewRating === 5 ? '⭐⭐⭐⭐⭐ Exceptional (5/5)' :
+                   reviewRating === 4 ? '⭐⭐⭐⭐ Great (4/5)' :
+                   reviewRating === 3 ? '⭐⭐⭐ Good (3/5)' :
+                   reviewRating === 2 ? '⭐⭐ Fair (2/5)' : '⭐ Poor (1/5)'}
+                </span>
+              </div>
+
+              {/* Trust Badges Selector */}
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-2">Award Badges</label>
+                <div className="flex flex-wrap gap-2">
+                  {['Top Quality Cocoa', 'Fast Payment', 'Accurate Weight', 'Reliable Transporter', 'Great Communication'].map((badge) => {
+                    const isSelected = selectedBadges.includes(badge);
+                    return (
+                      <button
+                        key={badge}
+                        type="button"
+                        onClick={() => {
+                          setSelectedBadges(prev => 
+                            isSelected ? prev.filter(b => b !== badge) : [...prev, badge]
+                          );
+                        }}
+                        className={`text-xs font-bold px-3 py-1.5 rounded-full border transition-all ${
+                          isSelected 
+                            ? 'bg-amber-600 text-white border-amber-600 shadow-xs' 
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {badge}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Comment */}
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">Feedback Note</label>
+                <textarea
+                  rows={3}
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="e.g. Excellent Grade A beans, accurate weighbridge readings, and swift delivery!"
+                  className="w-full border border-slate-200 rounded-2xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none font-medium"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setShowReviewModal(false)} 
+                  className="w-1/3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl text-xs"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={submittingReview}
+                  className="w-2/3 bg-amber-600 hover:bg-amber-700 text-white font-black py-3 rounded-xl transition-all shadow-lg shadow-amber-600/20 text-xs disabled:opacity-50"
+                >
+                  {submittingReview ? 'Submitting...' : 'Submit Rating'}
                 </button>
               </div>
             </form>

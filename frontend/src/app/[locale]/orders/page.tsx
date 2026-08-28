@@ -52,7 +52,7 @@ const STATUS_BADGE_STYLE: Record<string, string> = {
 };
 
 export default function OrdersHubPage({ params }: { params: { locale: string } }) {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, _hasHydrated } = useAuthStore();
   const router = useRouter();
 
   const [orders, setOrders] = useState<OrderItem[]>([]);
@@ -73,14 +73,21 @@ export default function OrdersHubPage({ params }: { params: { locale: string } }
   };
 
   useEffect(() => {
+    if (!_hasHydrated) return;
     if (!isAuthenticated) {
       router.push(`/${params.locale}/auth/login`);
       return;
     }
     fetchOrders();
-  }, [isAuthenticated, selectedTab, searchQuery]);
+  }, [_hasHydrated, isAuthenticated, selectedTab, searchQuery]);
 
-  if (!isAuthenticated || !user) return null;
+  if (!_hasHydrated || !isAuthenticated || !user) {
+    return (
+      <div className="flex justify-center items-center min-h-[60vh]">
+        <Loader2 className="animate-spin text-amber-600" size={40} />
+      </div>
+    );
+  }
 
   const activeOrdersCount = orders.filter(o => !['COMPLETED', 'CANCELLED', 'DISPUTED'].includes(o.status)).length;
   const completedOrdersCount = orders.filter(o => o.status === 'COMPLETED').length;

@@ -159,7 +159,10 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // UPDATE order status & logistics details
 router.put('/:id/status', authMiddleware, async (req, res) => {
   try {
-    const { status, note, transporterName, transporterPhone, vehicleNumber, trackingNumber, estimatedDeliveryDate } = req.body;
+    const { 
+      status, note, transporterName, transporterPhone, vehicleNumber, 
+      trackingNumber, estimatedDeliveryDate, loadingProofPhoto, weighbridgeReceipt 
+    } = req.body;
     const orderId = req.params.id;
     const userId = req.user.userId;
     const actorRole = req.user.role;
@@ -177,17 +180,17 @@ router.put('/:id/status', authMiddleware, async (req, res) => {
     if (!isFarmer && !isBuyer) return res.status(403).json({ error: 'Unauthorized.' });
 
     // Role-based status permission enforcement
-    const farmerOnly = ['ACCEPTED', 'PAID', 'IN_TRANSIT', 'DELIVERED'];
-    const buyerOnly = ['PAYMENT_PENDING', 'COMPLETED'];
+    const farmerOnly = ['ACCEPTED', 'IN_TRANSIT', 'DELIVERED'];
+    const buyerOnly = ['PAYMENT_PENDING', 'PAID', 'COMPLETED'];
     const both = ['DISPUTED', 'CANCELLED'];
 
     if (farmerOnly.includes(status) && !isFarmer) {
       return res.status(403).json({ error: 'Only the farmer can perform this action.' });
     }
-    if (buyerOnly.includes(status) && !isBuyer) {
+    if (buyerOnly.includes(status) && !isBuyer && status !== 'PAID') {
       return res.status(403).json({ error: 'Only the buyer can perform this action.' });
     }
-    if (!farmerOnly.includes(status) && !buyerOnly.includes(status) && !both.includes(status)) {
+    if (!farmerOnly.includes(status) && !buyerOnly.includes(status) && !both.includes(status) && status !== 'PAID') {
       return res.status(400).json({ error: `Invalid status: ${status}` });
     }
 
@@ -198,6 +201,8 @@ router.put('/:id/status', authMiddleware, async (req, res) => {
     if (vehicleNumber) updateData.vehicleNumber = vehicleNumber;
     if (trackingNumber) updateData.trackingNumber = trackingNumber;
     if (estimatedDeliveryDate) updateData.estimatedDeliveryDate = estimatedDeliveryDate;
+    if (loadingProofPhoto) updateData.loadingProofPhoto = loadingProofPhoto;
+    if (weighbridgeReceipt) updateData.weighbridgeReceipt = weighbridgeReceipt;
 
     // Update the order
     const updatedOrder = await prisma.order.update({
@@ -207,6 +212,7 @@ router.put('/:id/status', authMiddleware, async (req, res) => {
         listing: true,
         buyer: { select: { id: true, name: true, email: true, phone: true } },
         farmer: { select: { id: true, name: true, email: true, phone: true } },
+        review: true,
         activities: { orderBy: { createdAt: 'asc' } }
       }
     });
@@ -251,7 +257,10 @@ router.put('/:id/status', authMiddleware, async (req, res) => {
 // UPDATE logistics/driver info directly
 router.put('/:id/logistics', authMiddleware, async (req, res) => {
   try {
-    const { transporterName, transporterPhone, vehicleNumber, trackingNumber, estimatedDeliveryDate } = req.body;
+    const { 
+      transporterName, transporterPhone, vehicleNumber, trackingNumber, 
+      estimatedDeliveryDate, loadingProofPhoto, weighbridgeReceipt 
+    } = req.body;
     const orderId = req.params.id;
     const userId = req.user.userId;
 
@@ -262,19 +271,24 @@ router.put('/:id/logistics', authMiddleware, async (req, res) => {
       return res.status(403).json({ error: 'Only the farmer/seller can update dispatch logistics.' });
     }
 
+    const updateData = {
+      transporterName,
+      transporterPhone,
+      vehicleNumber,
+      trackingNumber,
+      estimatedDeliveryDate
+    };
+    if (loadingProofPhoto) updateData.loadingProofPhoto = loadingProofPhoto;
+    if (weighbridgeReceipt) updateData.weighbridgeReceipt = weighbridgeReceipt;
+
     const updatedOrder = await prisma.order.update({
       where: { id: orderId },
-      data: {
-        transporterName,
-        transporterPhone,
-        vehicleNumber,
-        trackingNumber,
-        estimatedDeliveryDate
-      },
+      data: updateData,
       include: {
         listing: true,
         buyer: { select: { id: true, name: true, email: true, phone: true } },
         farmer: { select: { id: true, name: true, email: true, phone: true } },
+        review: true,
         activities: { orderBy: { createdAt: 'asc' } }
       }
     });

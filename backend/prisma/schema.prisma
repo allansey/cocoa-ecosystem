@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -13,6 +13,7 @@ model Message {
   senderId   String
   senderName String
   text       String
+  audioUrl   String?
   createdAt  DateTime @default(now())
 }
 
@@ -30,6 +31,8 @@ model User {
   sales     Order[]   @relation("FarmerSales")
   reviews   Review[]
   readings  SensorReading[]
+  buyerOffers  Offer[] @relation("BuyerOffers")
+  farmerOffers Offer[] @relation("FarmerOffers")
 }
 
 model Listing {
@@ -41,10 +44,40 @@ model Listing {
   photo            String?       // SQLite doesn't support String[]
   status           String        @default("AVAILABLE") // AVAILABLE, SOLD
   farmerId         String
+  
+  // Cocoa Quality Passport Fields
+  moistureLevel    Float?        // e.g. 6.8%
+  aiHealthScore    Float?        // e.g. 98.5%
+  diseaseStatus    String?       // healthy, black_pod_rot, frosty_pod_rot
+  harvestDate      DateTime?
+  
   createdAt        DateTime      @default(now())
   
   farmer           User          @relation(fields: [farmerId], references: [id])
   orders           Order[]
+  offers           Offer[]
+}
+
+model Offer {
+  id               String   @id @default(uuid())
+  listingId        String
+  buyerId          String
+  farmerId         String
+  priceGhsPerTonne Float
+  quantityKg       Float
+  totalAmount      Float
+  status           String   @default("PENDING") // PENDING, ACCEPTED, DECLINED, COUNTERED
+  counterPrice     Float?
+  counterQuantity  Float?
+  note             String?
+  chatId           String?
+  orderId          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  listing          Listing  @relation(fields: [listingId], references: [id])
+  buyer            User     @relation("BuyerOffers", fields: [buyerId], references: [id])
+  farmer           User     @relation("FarmerOffers", fields: [farmerId], references: [id])
 }
 
 model Order {
@@ -78,6 +111,8 @@ model Order {
   vehicleNumber   String?
   trackingNumber  String?
   estimatedDeliveryDate String?
+  loadingProofPhoto String?
+  weighbridgeReceipt String?
 
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
@@ -103,15 +138,17 @@ model OrderActivity {
 }
 
 model Review {
-  id        String   @id @default(uuid())
-  orderId   String   @unique
-  userId    String   // Reviewer
-  rating    Int      @default(5)
-  comment   String?
-  createdAt DateTime @default(now())
+  id           String   @id @default(uuid())
+  orderId      String   @unique
+  userId       String   // Reviewer
+  targetUserId String?  // User being reviewed
+  rating       Int      @default(5)
+  comment      String?
+  badges       String?  // e.g. "Top Quality,Fast Payment"
+  createdAt    DateTime @default(now())
 
-  order     Order    @relation(fields: [orderId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+  order        Order    @relation(fields: [orderId], references: [id])
+  user         User     @relation(fields: [userId], references: [id])
 }
 
 model SensorReading {

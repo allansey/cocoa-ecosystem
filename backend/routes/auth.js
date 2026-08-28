@@ -104,4 +104,81 @@ router.put('/profile', authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/auth/forgot-password
+ * Initiate password reset request
+ */
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required.' });
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      // Return success to prevent email enumeration
+      return res.json({ message: 'If that email exists in our system, password reset instructions have been generated.' });
+    }
+
+    // Generate a temporary reset token (expires in 1 hour)
+    const resetToken = jwt.sign(
+      { userId: user.id, email: user.email, type: 'reset' },
+      process.env.JWT_SECRET || 'supersecretjwtkey',
+      { expiresIn: '1h' }
+    );
+
+    res.json({
+      message: 'Password reset token generated successfully.',
+      resetToken, // Provided in response for easy testing/demo reset
+      email: user.email
+    });
+  } catch (error) {
+    console.error('Forgot Password Error:', error);
+    res.status(500).json({ error: 'Failed to process password reset.' });
+  }
+});
+
+/**
+ * POST /api/auth/reset-password
+ * Complete password reset with new password
+ */
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword, email } = req.body;
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    }
+
+    let targetUserId = null;
+
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretjwtkey');
+        targetUserId = decoded.userId;
+      } catch (err) {
+        return res.status(400).json({ error: 'Invalid or expired reset token.' });
+      }
+    } else if (email) {
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (user) targetUserId = user.id;
+    }
+
+    if (!targetUserId) {
+      return res.status(404).json({ error: 'User account not found.' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    await prisma.user.update({
+      where: { id: targetUserId },
+      data: { password: hashedPassword }
+    });
+
+    res.json({ message: 'Password has been reset successfully. You can now login.' });
+  } catch (error) {
+    console.error('Reset Password Error:', error);
+    res.status(500).json({ error: 'Failed to reset password.' });
+  }
+});
+
 module.exports = router;

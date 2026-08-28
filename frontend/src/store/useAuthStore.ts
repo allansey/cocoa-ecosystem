@@ -15,6 +15,8 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  _hasHydrated: boolean;
+  setHasHydrated: (hydrated: boolean) => void;
   login: (user: User, token: string) => void;
   logout: () => void;
   signInToFirebase: (firebaseToken: string) => Promise<void>;
@@ -26,9 +28,10 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
+      _hasHydrated: false,
+      setHasHydrated: (hydrated: boolean) => set({ _hasHydrated: hydrated }),
       login: (user, token) => set({ user, token, isAuthenticated: true }),
       logout: () => {
-        // Sign out of Firebase Auth when the user logs out
         if (auth) signOut(auth).catch(() => {});
         set({ user: null, token: null, isAuthenticated: false });
       },
@@ -42,7 +45,10 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'auth-storage', // name of the item in the storage (must be unique)
+      name: 'auth-storage',
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );

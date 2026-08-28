@@ -1,11 +1,13 @@
 'use client';
+
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { MessageSquare, Clock, Search, ArrowRight, User as UserIcon, Loader2 } from 'lucide-react';
+import { MessageSquare, Clock, Search, ArrowRight, User as UserIcon, Loader2, Handshake, ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useRouter } from 'next/navigation';
 import { db } from '@/firebase';
 import { ref, onValue } from 'firebase/database';
+import api from '@/lib/api';
 
 interface UserChat {
   id: string;
@@ -18,22 +20,61 @@ interface UserChat {
 }
 
 export default function ChatListPage({ params: { locale } }: { params: { locale: string } }) {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, _hasHydrated } = useAuthStore();
   const router = useRouter();
   
   const [inquiries, setInquiries] = useState<UserChat[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!_hasHydrated) return;
+    if (!isAuthenticated || !user) {
       router.push(`/${locale}/auth/login`);
       return;
     }
     
-    if (!user || !db) return;
+    const currentUser = user;
 
-    const userChatsRef = ref(db, `userChats/${user.id}`);
+    const fetchOffers = async () => {
+      try {
+        const res = await api.get('/offers/my-offers');
+        const offerChats: UserChat[] = (res.data || []).map((o: any) => {
+          const isFarmer = currentUser.role === 'FARMER';
+          const other = isFarmer ? o.buyer : o.farmer;
+          const chatId = o.chatId || `inquiry_${o.listingId}_${o.buyerId}`;
+          return {
+            id: chatId,
+            title: `${o.listing?.grade || 'Grade A'} Cocoa (${o.listing?.region || 'Ghana'})`,
+            otherPartyName: other?.name || 'Trading Partner',
+            otherPartyId: other?.id || '',
+            lastMessage: `💼 Offer: ${o.priceGhsPerTonne.toLocaleString()} GHS/Tonne (${o.quantityKg.toLocaleString()} kg) - Status: ${o.status}`,
+            timestamp: new Date(o.createdAt).getTime(),
+            unread: o.status === 'PENDING' && isFarmer
+          };
+        });
+
+        setInquiries(prev => {
+          const map = new Map<string, UserChat>();
+          offerChats.forEach(c => map.set(c.id, c));
+          prev.forEach(c => map.set(c.id, { ...map.get(c.id), ...c }));
+          return Array.from(map.values()).sort((a, b) => b.timestamp - a.timestamp);
+        });
+      } catch (err) {
+        console.warn('Could not load backend offers:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOffers();
+
+    if (!db) {
+      setLoading(false);
+      return;
+    }
+
+    const userChatsRef = ref(db, `userChats/${currentUser.id}`);
     const unsubscribe = onValue(
       userChatsRef,
       (snapshot) => {
@@ -41,111 +82,148 @@ export default function ChatListPage({ params: { locale } }: { params: { locale:
         if (data) {
           const chatsList: UserChat[] = Object.keys(data).map(key => ({
             ...data[key]
-          })).sort((a, b) => b.timestamp - a.timestamp); // sort descending
-          setInquiries(chatsList);
-        } else {
-          setInquiries([]);
+          }));
+
+          setInquiries(prev => {
+            const map = new Map<string, UserChat>();
+            prev.forEach(c => map.set(c.id, c));
+            chatsList.forEach(c => map.set(c.id, { ...map.get(c.id), ...c }));
+            return Array.from(map.values()).sort((a, b) => b.timestamp - a.timestamp);
+          });
         }
-        setError('');
         setLoading(false);
       },
-      (err) => {
-        console.error('[Firebase Chat List Error]:', err);
-        setError(`Chat Database Error: ${err.message || 'Permission denied or database offline.'}`);
+      () => {
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [isAuthenticated, router, locale, user]);
+  }, [_hasHydrated, isAuthenticated, router, locale, user]);
 
-  if (!isAuthenticated || !user) return null;
+  const filteredInquiries = inquiries.filter(chat => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      chat.otherPartyName?.toLowerCase().includes(q) ||
+      chat.title?.toLowerCase().includes(q) ||
+      chat.lastMessage?.toLowerCase().includes(q)
+    );
+  });
+
+  if (!_hasHydrated || !isAuthenticated || !user) {
+    return (
+      <div className="flex justify-center items-center min-h-[60vh]">
+        <Loader2 className="animate-spin text-amber-600" size={40} />
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-4xl mx-auto py-12 px-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-          <Link href={`/${locale}/dashboard`} className="inline-flex items-center text-amber-600 hover:text-amber-800 mb-4 font-bold bg-amber-50 px-4 py-2 rounded-full w-max shadow-sm transition-all hover:shadow-md">
-            ← Back to Dashboard
-          </Link>
-          <h1 className="text-4xl font-black text-slate-800 tracking-tight">Inquiries & Chats</h1>
-          <p className="text-slate-500 font-medium mt-2">Manage your ongoing negotiations and messages.</p>
-        </div>
-      </div>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl mb-6 text-sm font-medium">
-          ⚠️ {error}
-        </div>
-      )}
-
-      <div className="bg-white border border-slate-200 rounded-3xl shadow-lg overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-4">
-          <div className="relative flex-grow">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-            <input 
-              type="text" 
-              placeholder="Search conversations..." 
-              className="w-full pl-12 pr-4 py-3 rounded-2xl border-slate-200 focus:border-amber-500 focus:ring focus:ring-amber-200 transition-all bg-white"
-            />
+    <div className="min-h-[calc(100vh-4rem)] bg-slate-50/70 py-8 sm:py-12 px-4 sm:px-6">
+      <div className="max-w-4xl mx-auto space-y-6">
+        
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <Link 
+              href={`/${locale}/dashboard`} 
+              className="inline-flex items-center text-slate-500 hover:text-amber-800 text-xs font-bold uppercase tracking-wider mb-2 transition-colors"
+            >
+              <ArrowLeft size={14} className="mr-1.5" /> Back to Dashboard
+            </Link>
+            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Inquiries & Trade Chats</h1>
+            <p className="text-slate-500 font-medium text-sm mt-1">Manage ongoing price negotiations and trade discussions.</p>
           </div>
         </div>
 
-        <div className="divide-y divide-slate-100">
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <input 
+            type="text" 
+            placeholder="Search conversations by partner or listing..." 
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 bg-white font-medium text-slate-800 text-sm shadow-xs transition-all"
+          />
+        </div>
+
+        {/* Conversations List */}
+        <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden divide-y divide-slate-100">
           {loading ? (
-            <div className="py-20 flex flex-col items-center justify-center">
-              <Loader2 className="animate-spin text-amber-500 mb-4" size={40} />
-              <p className="text-slate-500 font-bold">Loading chats...</p>
+            <div className="py-20 flex flex-col items-center justify-center gap-3">
+              <Loader2 className="animate-spin text-amber-600" size={36} />
+              <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Loading conversations...</p>
             </div>
-          ) : inquiries.map((chat) => {
-            const isOrder = chat.id.startsWith('order_');
-            const linkHref = isOrder ? `/${locale}/orders/${chat.id.split('_')[1]}` : `/${locale}/chat/${chat.id}`;
-            
-            return (
-              <Link 
-                key={chat.id} 
-                href={linkHref}
-                className="block p-6 hover:bg-amber-50 transition-colors group"
-              >
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-100 to-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                    <UserIcon size={24} />
-                  </div>
-                  <div className="flex-grow min-w-0">
-                    <div className="flex justify-between items-start mb-1">
-                      <h3 className="text-lg font-black text-slate-800 truncate pr-4">
-                        {chat.otherPartyName}
-                      </h3>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
-                          <Clock size={12} /> {chat.timestamp ? new Date(chat.timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
-                        </span>
-                        {chat.unread && (
-                          <span className="w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-sm"></span>
-                        )}
-                      </div>
+          ) : filteredInquiries.length === 0 ? (
+            <div className="py-20 flex flex-col items-center justify-center text-center px-6 space-y-3">
+              <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center shadow-xs">
+                <MessageSquare size={32} />
+              </div>
+              <h3 className="text-lg font-black text-slate-800">No active conversations</h3>
+              <p className="text-slate-400 text-xs max-w-sm font-medium">
+                {searchQuery 
+                  ? `No chats match "${searchQuery}".` 
+                  : 'Inquiries created on marketplace listings or bargaining offers will appear here.'}
+              </p>
+            </div>
+          ) : (
+            filteredInquiries.map((chat) => {
+              const isOrder = chat.id.startsWith('order_');
+              const linkHref = isOrder ? `/${locale}/orders/${chat.id.split('_')[1]}` : `/${locale}/chat/${chat.id}`;
+              const isOffer = chat.lastMessage?.includes('💼');
+
+              return (
+                <Link 
+                  key={chat.id} 
+                  href={linkHref}
+                  className="block p-5 sm:p-6 hover:bg-amber-50/60 transition-all group"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white flex items-center justify-center shrink-0 font-black text-base shadow-xs group-hover:scale-105 transition-transform">
+                      {chat.otherPartyName ? chat.otherPartyName[0].toUpperCase() : <UserIcon size={20} />}
                     </div>
-                    <p className="text-xs font-bold text-amber-600 mb-2">{chat.title}</p>
-                    <p className="text-sm text-slate-600 font-medium truncate">
-                      {chat.lastMessage}
-                    </p>
+
+                    <div className="flex-grow min-w-0">
+                      <div className="flex justify-between items-start mb-1 gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <h3 className="text-base font-black text-slate-900 truncate">
+                            {chat.otherPartyName}
+                          </h3>
+                          {isOffer && (
+                            <span className="text-[10px] font-black bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full shrink-0">
+                              Offer
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
+                            <Clock size={12} /> 
+                            {chat.timestamp ? new Date(chat.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''}
+                          </span>
+                          {chat.unread && (
+                            <span className="w-2.5 h-2.5 bg-red-500 rounded-full shadow-xs animate-pulse" />
+                          )}
+                        </div>
+                      </div>
+
+                      <p className="text-xs font-bold text-amber-700 mb-1 truncate">{chat.title}</p>
+                      <p className="text-xs sm:text-sm text-slate-500 font-medium truncate">
+                        {chat.lastMessage}
+                      </p>
+                    </div>
+
+                    <div className="shrink-0 self-center text-slate-300 group-hover:text-amber-600 transition-colors transform group-hover:translate-x-1">
+                      <ArrowRight size={20} />
+                    </div>
                   </div>
-                  <div className="shrink-0 self-center text-slate-300 group-hover:text-amber-500 transition-colors transform group-hover:translate-x-1">
-                    <ArrowRight size={24} />
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-          
-          {!loading && inquiries.length === 0 && (
-            <div className="py-20 flex flex-col items-center justify-center text-center px-6">
-              <MessageSquare size={48} className="text-slate-200 mb-4" />
-              <h3 className="text-xl font-black text-slate-800">No active inquiries</h3>
-              <p className="text-slate-500 font-medium mt-2 max-w-sm">When you contact a seller or someone messages you, the conversation will appear here.</p>
-            </div>
+                </Link>
+              );
+            })
           )}
         </div>
+
       </div>
     </div>
   );

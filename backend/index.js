@@ -18,6 +18,7 @@ const paymentRoutes = require('./routes/payment');
 const reviewRoutes = require('./routes/reviews');
 const iotRoutes = require('./routes/iot');
 const chatRoutes = require('./routes/chat');
+const offerRoutes = require('./routes/offers');
 
 const app = express();
 
@@ -65,6 +66,7 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/iot', iotRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/offers', offerRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

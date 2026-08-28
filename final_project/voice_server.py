@@ -89,7 +89,7 @@ tts_model = VitsModel.from_pretrained("facebook/mms-tts-aka")
 tts_tokenizer = VitsTokenizer.from_pretrained("facebook/mms-tts-aka")
 tts_model.eval()
 # Tweak these if speech is too fast/slow or too monotone
-tts_model.speaking_rate = 2   # slightly slower for more natural pacing
+tts_model.speaking_rate = 0.75   # slightly slower for more natural pacing
 tts_model.noise_scale = 1    # higher noise_scale increases expressive variation (less monotone)
 print(f"  MMS-TTS ready (sample rate: {tts_model.config.sampling_rate} Hz)")
 
@@ -313,6 +313,19 @@ def notify():
     return jsonify({"received": True, "broadcast": True,
                     "client_count": len(_sse_clients)})
 
+
+@app.route("/health", methods=["GET"], endpoint="health_status")
+def health_check():
+    return jsonify({
+        "status": "online",
+        "service": "Cocoa Voice + AI Advisor",
+        "model": GEMINI_MODEL,
+        "mms_tts": "ready"
+    })
+
+@app.route("/", methods=["GET"], endpoint="root_status")
+def root_status():
+    return health_check()
 
 @app.route("/stream", methods=["GET"])
 def stream():

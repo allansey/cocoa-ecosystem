@@ -2,8 +2,7 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
 import { getAuth } from "firebase/auth";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// Web app's Firebase configuration
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -14,17 +13,28 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Initialize Firebase gracefully
-let app;
+// Check if valid Firebase configuration is provided
+const isFirebaseConfigured = Boolean(
+  firebaseConfig.apiKey &&
+  firebaseConfig.apiKey !== 'YOUR_FIREBASE_API_KEY' &&
+  firebaseConfig.projectId &&
+  firebaseConfig.projectId !== 'YOUR_FIREBASE_PROJECT_ID'
+);
+
+let app: ReturnType<typeof initializeApp> | undefined;
 let db: ReturnType<typeof getDatabase> | null = null;
 let auth: ReturnType<typeof getAuth> | null = null;
 
-try {
-  app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  db = getDatabase(app);
-  auth = getAuth(app);
-} catch (error) {
-  console.warn("Firebase initialization failed. Check environment variables.");
+if (isFirebaseConfigured) {
+  try {
+    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    if (firebaseConfig.databaseURL || firebaseConfig.projectId) {
+      db = getDatabase(app);
+    }
+    auth = getAuth(app);
+  } catch (error) {
+    console.warn("[Firebase] Initialization skipped or credentials incomplete.");
+  }
 }
 
 export { app, db, auth };

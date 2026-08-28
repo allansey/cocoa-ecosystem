@@ -1,329 +1,404 @@
 'use client';
-import {useTranslations} from 'next-intl';
+
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, TrendingUp, Sprout, ShieldCheck, Globe, Loader2, Droplets, Heart, Zap, Users, CheckCircle, Smartphone, MessageSquare } from 'lucide-react';
-import { useState, useEffect, lazy, Suspense } from 'react';
-import dynamic from 'next/dynamic';
+import { 
+  ArrowRight, TrendingUp, Sprout, ShieldCheck, Droplets, 
+  Brain, CheckCircle2, MessageSquare, Handshake, Truck, 
+  Award, Sparkles, Phone, Mail, MapPin, ChevronRight,
+  Globe, Check, Star, Lock, Smartphone
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
 import api from '@/lib/api';
-
-// Lazy load brain icon since it's not used immediately
-const Brain = lazy(() => import('lucide-react').then(m => ({ default: m.Brain })));
 
 export default function HomePage({ params: { locale } }: { params: { locale: string } }) {
   const t = useTranslations('Index');
   const [price, setPrice] = useState<number | null>(null);
-  const [loadingPrice, setLoadingPrice] = useState(false); // Don't block render
+  const [loadingPrice, setLoadingPrice] = useState(false);
 
-  // Defer non-critical price fetch
   useEffect(() => {
-    // Add a small delay so this doesn't block initial paint
     const timer = setTimeout(() => {
       setLoadingPrice(true);
       api.get('/price')
         .then(res => setPrice(res.data.priceGhsPerTonne))
-        .catch(err => console.error('Failed to fetch price', err))
+        .catch(() => setPrice(35000))
         .finally(() => setLoadingPrice(false));
-    }, 500);
-    
+    }, 300);
     return () => clearTimeout(timer);
   }, []);
 
   return (
-    <div className="flex flex-col items-center w-full bg-slate-50/50">
-      {/* Hero Section */}
-      <section className="relative w-full flex flex-col items-center justify-center px-6 pt-24 pb-32 text-center overflow-hidden bg-white">
-        {/* Background decorative elements */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] opacity-30 pointer-events-none">
-          <div className="absolute inset-0 bg-gradient-to-tr from-amber-300 via-orange-100 to-emerald-200 rounded-full blur-3xl mix-blend-multiply animate-pulse" style={{ animationDuration: '8s' }}></div>
-        </div>
+    <div className="flex flex-col items-center w-full bg-slate-50/40 text-slate-900 overflow-x-hidden">
+      
+      {/* 1. HERO SECTION WITH RICH VISUALS & LIVE MARKET TICKER */}
+      <section className="relative w-full overflow-hidden bg-gradient-to-b from-amber-950 via-amber-900 to-slate-950 text-white py-16 sm:py-24 lg:py-32 px-4 sm:px-6 lg:px-8">
         
-        <div className="relative z-10 max-w-4xl flex flex-col items-center gap-8">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-100/80 border border-amber-200/50 text-amber-800 text-sm font-bold backdrop-blur-sm shadow-sm mb-4">
-            <Sprout size={16} />
-            <span>The Future of Cocoa Trading</span>
-          </div>
-          
-          <h1 className="text-5xl md:text-7xl font-black text-slate-800 tracking-tight leading-[1.1]">
-            {t('title') || 'Connecting Cocoa Farmers & Buyers'}
-          </h1>
-          
-          <p className="text-xl md:text-2xl text-slate-600 max-w-2xl font-medium leading-relaxed">
-            {t('subtitle') || 'A transparent, fair, and efficient marketplace for the modern agricultural ecosystem.'}
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 mt-6">
-            <Link 
-              href={`/${locale}/listings`}
-              prefetch={true}
-              className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl shadow-amber-500/20 transition-all hover:-translate-y-1 hover:shadow-amber-500/40 active:scale-95"
-            >
-              {t('getStarted') || 'Explore Marketplace'} <ArrowRight size={20} className="stroke-[3]" />
-            </Link>
-            <Link 
-              href={`/${locale}/dashboard/iot`}
-              prefetch={true}
-              className="inline-flex items-center justify-center gap-2 bg-emerald-600 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl shadow-emerald-500/20 transition-all hover:-translate-y-1 active:scale-95"
-            >
-              <Droplets size={20} /> Smart Farm
-            </Link>
-          </div>
-          <div className="flex gap-6 mt-4 opacity-70">
-            <div className="flex items-center gap-2 text-slate-500 font-bold text-sm">
-              <ShieldCheck size={16} className="text-emerald-500" /> Secure Payments
-            </div>
-            <div className="flex items-center gap-2 text-slate-500 font-bold text-sm">
-              <Brain size={16} className="text-indigo-500" /> Smart Farm AI
-            </div>
-          </div>
+        {/* Background Ambient Glows & Image Overlay */}
+        <div className="absolute inset-0 z-0 opacity-35 pointer-events-none">
+          <Image 
+            src="/images/hero-cocoa.jpg" 
+            alt="Ghana Cocoa Harvest" 
+            fill 
+            className="object-cover scale-105"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-amber-950/85 to-amber-950/60" />
         </div>
-      </section>
 
-      {/* Stats/Price Feed Section */}
-      <section className="w-full max-w-6xl px-6 py-12 -mt-16 z-20">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="relative z-10 max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-16">
           
-          {/* Price Feed Card */}
-          <div className="bg-white/90 backdrop-blur-xl p-8 rounded-3xl shadow-2xl shadow-slate-200/50 border border-white flex flex-col gap-4 transform transition-transform hover:scale-[1.02]">
-            <div className="flex justify-between items-start">
-              <div className="bg-gradient-to-br from-emerald-100 to-emerald-50 p-3 rounded-2xl text-emerald-600 shadow-inner">
-                <TrendingUp size={28} />
-              </div>
-              <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-3 py-1.5 rounded-full flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                LIVE
-              </span>
+          {/* Hero Left Content */}
+          <div className="flex-1 text-center lg:text-left space-y-6 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-bold backdrop-blur-md shadow-xs">
+              <Sprout size={15} className="text-amber-400" />
+              <span>COCOBOD Grade-Certified Digital Exchange</span>
             </div>
-            <div>
-              <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">{t('priceFeed') || 'Market Price'}</h2>
-              <div className="flex items-baseline gap-2">
-                {loadingPrice ? (
-                  <Loader2 className="animate-spin text-slate-400" size={24} />
-                ) : (
-                  <>
-                    <div className="text-4xl font-black text-slate-800">{price ? price.toLocaleString() : '35,000'}</div>
-                    <div className="text-lg font-bold text-slate-500">GHS/Ton</div>
-                  </>
-                )}
-              </div>
+
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.1]">
+              Direct Cocoa Trade with <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-200">Guaranteed Escrow</span>
+            </h1>
+
+            <p className="text-sm sm:text-base lg:text-lg text-amber-100/90 font-medium leading-relaxed">
+              Connect verified Ghanaian smallholder cocoa farmers directly with licensed buyers. Backed by real-time IoT moisture sensors, AI pod health scans, and instant Ghana Mobile Money escrow settlements.
+            </p>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3.5 pt-2">
+              <Link 
+                href={`/${locale}/listings`}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-7 py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-amber-600/30 transition-all hover:scale-105 active:scale-95"
+              >
+                <span>Explore Cocoa Batches</span>
+                <ArrowRight size={16} />
+              </Link>
+              
+              <Link 
+                href={`/${locale}/auth/register?role=FARMER`}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 text-white border border-white/20 px-7 py-3.5 rounded-xl font-bold text-sm backdrop-blur-md transition-all hover:border-white/40 active:scale-95"
+              >
+                <Award size={16} className="text-amber-300" />
+                <span>Sell Your Harvest</span>
+              </Link>
             </div>
-            <div className="mt-auto pt-4 border-t border-slate-100">
-              <p className="text-sm text-slate-500 font-medium">+2.4% from last week</p>
+
+            {/* Trust Badges */}
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-5 pt-4 text-xs text-amber-200/80 font-medium">
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck size={16} className="text-emerald-400 shrink-0" />
+                <span>100% MoMo Escrow Protection</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                <span>COCOBOD Quality Standard</span>
+              </div>
             </div>
           </div>
 
-          {/* Feature Card 1 */}
-          <div className="bg-white/90 backdrop-blur-xl p-8 rounded-3xl shadow-xl shadow-slate-200/40 border border-white flex flex-col gap-4 transform transition-transform hover:scale-[1.02]">
-             <div className="bg-gradient-to-br from-blue-100 to-blue-50 p-3 rounded-2xl text-blue-600 shadow-inner w-max">
-                <ShieldCheck size={28} />
-              </div>
-              <h3 className="text-xl font-bold text-slate-800">Secure Escrow</h3>
-              <p className="text-slate-600 font-medium">Your funds are protected. Payments are only released when both parties are satisfied.</p>
-          </div>
-
-          {/* Feature Card 2 */}
-          <div className="bg-white/90 backdrop-blur-xl p-8 rounded-3xl shadow-xl shadow-slate-200/40 border border-white flex flex-col gap-4 transform transition-transform hover:scale-[1.02]">
-             <div className="bg-gradient-to-br from-purple-100 to-purple-50 p-3 rounded-2xl text-purple-600 shadow-inner w-max">
-                <Globe size={28} />
-              </div>
-              <h3 className="text-xl font-bold text-slate-800">Global Reach</h3>
-              <p className="text-slate-600 font-medium">Connect with verified buyers and sellers across the country and beyond.</p>
-          </div>
-
-        </div>
-      </section>
-
-      {/* About / Mission Section */}
-      <section className="w-full max-w-6xl px-6 py-24">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-          <div className="relative">
-            <div className="absolute -top-10 -left-10 w-40 h-40 bg-amber-100 rounded-full blur-3xl opacity-50"></div>
-            <div className="relative bg-white p-2 rounded-[2.5rem] shadow-3xl transform -rotate-2">
-              <Image 
-                src="/images/farm.jpg" 
-                alt="Cocoa Farm" 
-                width={800}
-                height={1000}
-                className="rounded-[2.2rem] w-full aspect-[4/5] object-cover"
-                loading="lazy"
-                quality={75}
-              />
-              <div className="absolute -bottom-6 -right-6 bg-slate-900 text-white p-8 rounded-3xl shadow-2xl max-w-[240px]">
-                <Heart className="text-rose-500 mb-2" size={32} />
-                <p className="font-bold text-lg leading-snug italic">&quot;Empowering the hands that feed the nation.&quot;</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex flex-col gap-8">
-            <div className="space-y-4">
-              <h2 className="text-amber-600 font-black uppercase tracking-[0.2em] text-xs">Our Mission</h2>
-              <h3 className="text-4xl md:text-5xl font-black text-slate-800 leading-tight">Eliminating Middlemen, Maximizing Value.</h3>
-              <p className="text-lg text-slate-600 font-medium leading-relaxed">
-                CocoaLink was founded on a simple belief: Ghanaian cocoa farmers deserve the full value of their hard work. By connecting them directly with international and local buyers, we use technology to foster trust and prosperity.
-              </p>
-            </div>
+          {/* Hero Right: Live Market Card & Quality Passport Mockup */}
+          <div className="w-full lg:w-[420px] shrink-0 space-y-4">
             
-            <div className="grid grid-cols-2 gap-6">
-              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                <Zap className="text-amber-500 mb-3" size={24} />
-                <h4 className="font-bold text-slate-800">Fast Trading</h4>
-                <p className="text-sm text-slate-500">Sell your harvest in minutes.</p>
+            {/* Live Price Widget */}
+            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-2xl text-white relative overflow-hidden">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <span className="text-[10px] font-bold text-amber-300 uppercase tracking-widest block">Ghana Exchange Rate</span>
+                  <h3 className="text-base font-bold text-white mt-0.5">COCOBOD Standard Price</h3>
+                </div>
+                <span className="text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2.5 py-1 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  LIVE
+                </span>
               </div>
-              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                <Users className="text-emerald-500 mb-3" size={24} />
-                <h4 className="font-bold text-slate-800">Verified Pro</h4>
-                <p className="text-sm text-slate-500">Trust-based community.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      {/* How it Works Section */}
-      <section className="w-full bg-slate-900 py-32">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-20 space-y-4">
-            <h2 className="text-amber-400 font-black uppercase tracking-[0.2em] text-xs">The Workflow</h2>
-            <h3 className="text-4xl md:text-5xl font-black text-white">How CocoaLink Works</h3>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
-            {/* Connector Lines (Desktop) */}
-            <div className="hidden md:block absolute top-1/2 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-y-1/2"></div>
-            
-            <div className="relative flex flex-col items-center text-center gap-6 group">
-              <div className="w-24 h-24 bg-white/5 border border-white/10 rounded-3xl flex items-center justify-center text-amber-400 transform transition-transform group-hover:scale-110 group-hover:bg-amber-400 group-hover:text-slate-900 duration-500">
-                <Smartphone size={40} />
+              <div className="flex items-baseline gap-2 mb-3">
+                <span className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+                  {price ? price.toLocaleString() : '35,000'}
+                </span>
+                <span className="text-sm font-bold text-amber-200">GHS / Tonne</span>
               </div>
-              <div className="space-y-2 relative z-10">
-                <h3 className="text-2xl font-black text-white">1. List Harvest</h3>
-                <p className="text-slate-400 font-medium">Farmers post listings with grade, weight, and region.</p>
-              </div>
-            </div>
 
-            <div className="relative flex flex-col items-center text-center gap-6 group">
-              <div className="w-24 h-24 bg-white/5 border border-white/10 rounded-3xl flex items-center justify-center text-emerald-400 transform transition-transform group-hover:scale-110 group-hover:bg-emerald-400 group-hover:text-slate-900 duration-500">
-                <MessageSquare size={40} />
-              </div>
-              <div className="space-y-2 relative z-10">
-                <h3 className="text-2xl font-black text-white">2. Negotiate</h3>
-                <p className="text-slate-400 font-medium">Connect via secure in-app chat to finalize terms.</p>
-              </div>
-            </div>
-
-            <div className="relative flex flex-col items-center text-center gap-6 group">
-              <div className="w-24 h-24 bg-white/5 border border-white/10 rounded-3xl flex items-center justify-center text-blue-400 transform transition-transform group-hover:scale-110 group-hover:bg-blue-400 group-hover:text-slate-900 duration-500">
-                <CheckCircle size={40} />
-              </div>
-              <div className="space-y-2 relative z-10">
-                <h3 className="text-2xl font-black text-white">3. Get Paid</h3>
-                <p className="text-slate-400 font-medium">Secure MoMo payments on delivery completion.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* News & Updates Section */}
-      <section className="w-full max-w-6xl px-6 py-32">
-        <div className="flex justify-between items-end mb-16">
-          <div className="space-y-4">
-            <h2 className="text-amber-600 font-black uppercase tracking-[0.2em] text-xs">Cocoa Hub</h2>
-            <h3 className="text-4xl md:text-5xl font-black text-slate-800">News & Insights</h3>
-          </div>
-          <div className="hidden sm:flex items-center gap-2 text-slate-800 font-black border-b-4 border-amber-400 pb-1">
-            Latest Industry Updates
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {[
-            {
-              date: "May 06, 2026",
-              title: "Ghana Cocoa Output Set to Rise by 15% This Season",
-              category: "Market Report",
-              img: "/images/news1.jpg"
-            },
-            {
-              date: "April 28, 2026",
-              title: "New AI Detection Model Launches for Black Pod Disease",
-              category: "Technology",
-              img: "/images/news2.jpg"
-            },
-            {
-              date: "April 22, 2026",
-              title: "Sustainable Farming: Tips for the Upcoming Rain Season",
-              category: "Advisory",
-              img: "/images/news3.jpg"
-            }
-          ].map((news, idx) => (
-            <div key={idx} className="group block">
-              <div className="relative overflow-hidden rounded-[2rem] mb-6 shadow-lg">
-                <Image src={news.img} alt={news.title} width={400} height={300} className="w-full aspect-[4/3] object-cover transform transition-transform group-hover:scale-105 duration-700" loading="lazy" quality={70} />
-                <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-800">
-                  {news.category}
+              <div className="grid grid-cols-2 gap-2 pt-3 border-t border-white/10 text-xs">
+                <div className="bg-white/5 rounded-xl p-2.5">
+                  <span className="text-amber-300/80 text-[10px] font-bold uppercase block">Per 64kg Bag</span>
+                  <span className="text-sm font-bold text-white">~2,240 GHS</span>
+                </div>
+                <div className="bg-white/5 rounded-xl p-2.5">
+                  <span className="text-amber-300/80 text-[10px] font-bold uppercase block">Grade A Premium</span>
+                  <span className="text-sm font-bold text-emerald-300">+5.0% Index</span>
                 </div>
               </div>
-              <div className="space-y-2">
-                <p className="text-xs font-bold text-slate-400 tracking-wider">{news.date}</p>
-                <h4 className="text-xl font-black text-slate-800 leading-tight">
-                  {news.title}
-                </h4>
+            </div>
+
+            {/* Quick Passport Highlight */}
+            <div className="bg-gradient-to-r from-amber-600/30 to-amber-700/20 backdrop-blur-md border border-amber-400/30 rounded-2xl p-4 flex items-center gap-3 text-white">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 font-bold shadow-xs">
+                <Award size={20} />
+              </div>
+              <div className="text-xs">
+                <strong className="block text-amber-200 font-bold">Digital Quality Passport</strong>
+                <span className="text-white/80">Every cocoa batch is certified with moisture & cut tests.</span>
               </div>
             </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* 2. THE 4 PILLARS OF COCOALINK */}
+      <section className="w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+        <div className="text-center max-w-2xl mx-auto mb-12 space-y-2">
+          <span className="text-xs font-black text-amber-700 uppercase tracking-widest">Built for Ghana Agriculture</span>
+          <h2 className="text-2xl sm:text-4xl font-bold text-slate-900 tracking-tight">The Modern Cocoa Trading Stack</h2>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium">
+            Everything farmers and agribusiness buyers need to trade safely and profitably.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          
+          {/* Pillar 1 */}
+          <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all space-y-3 group">
+            <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
+              <ShieldCheck size={22} />
+            </div>
+            <h3 className="text-base font-bold text-slate-900">100% Escrow Protection</h3>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+              Funds are held securely via MTN MoMo, Telecel Cash, or Card until the buyer verifies bean quality and weight.
+            </p>
+          </div>
+
+          {/* Pillar 2 */}
+          <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all space-y-3 group">
+            <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
+              <Award size={22} />
+            </div>
+            <h3 className="text-base font-bold text-slate-900">Digital Quality Passport</h3>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+              Transparent batch certifications including moisture content %, AI health score, and single-origin GPS coordinates.
+            </p>
+          </div>
+
+          {/* Pillar 3 */}
+          <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all space-y-3 group">
+            <div className="w-11 h-11 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
+              <Droplets size={22} />
+            </div>
+            <h3 className="text-base font-bold text-slate-900">Smart Farm IoT</h3>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+              Real-time wireless soil moisture, temperature, and microclimate telemetry to optimize harvest drying.
+            </p>
+          </div>
+
+          {/* Pillar 4 */}
+          <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all space-y-3 group">
+            <div className="w-11 h-11 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
+              <Brain size={22} />
+            </div>
+            <h3 className="text-base font-bold text-slate-900">Twi & English AI Voice</h3>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+              Instant voice and photo diagnosis for black pod disease and pests, tailored for Ghanaian farmers.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      {/* 3. STEP BY STEP TRADE FLOW */}
+      <section className="w-full bg-slate-900 text-white py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto space-y-12">
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <span className="text-xs font-black text-amber-400 uppercase tracking-widest">Simple & Reliable</span>
+            <h2 className="text-2xl sm:text-4xl font-bold tracking-tight">How CocoaLink Works</h2>
+            <p className="text-xs sm:text-sm text-slate-400 font-medium">From farm gate to port warehouse in 4 secure steps.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { step: '01', title: 'Post Harvest', desc: 'Farmers list certified cocoa batches with photos, grade, weight, and region.' },
+              { step: '02', title: 'Bargain & Agree', desc: 'Buyers and farmers negotiate price per tonne via real-time persistent chat.' },
+              { step: '03', title: 'MoMo Escrow', desc: 'Buyer deposits funds into protected escrow via Mobile Money (*170# / *110#).' },
+              { step: '04', title: 'Dispatch & Release', desc: 'Assigned driver delivers cocoa. Funds are released instantly upon weighbridge verification.' }
+            ].map((s, idx) => (
+              <div key={idx} className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-3 relative hover:border-amber-400/50 transition-colors">
+                <span className="text-2xl font-black text-amber-400/80 font-mono">{s.step}</span>
+                <h3 className="text-base font-bold text-white">{s.title}</h3>
+                <p className="text-xs text-slate-400 font-medium leading-relaxed">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 4. NEWS & MARKET INSIGHTS */}
+      <section className="w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-10">
+          <div>
+            <span className="text-xs font-black text-amber-700 uppercase tracking-widest">Marketplace Intelligence</span>
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight mt-1">Latest Industry Updates</h2>
+          </div>
+          <Link 
+            href={`/${locale}/news`}
+            className="text-xs font-bold text-amber-800 hover:text-amber-950 flex items-center gap-1 bg-amber-50 px-3.5 py-2 rounded-xl border border-amber-200/80 transition-colors"
+          >
+            <span>View All Reports</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[
+            {
+              date: 'May 06, 2026',
+              title: 'Ghana Cocoa Output Forecasted to Rise 15% This Season',
+              category: 'Market Report',
+              img: '/images/farm.jpg'
+            },
+            {
+              date: 'April 28, 2026',
+              title: 'YOLOv8 Computer Vision Launches for Early Black Pod Diagnosis',
+              category: 'Technology',
+              img: '/images/news2.jpg'
+            },
+            {
+              date: 'April 22, 2026',
+              title: 'Moisture Control Best Practices for Export Quality Grade A Beans',
+              category: 'Advisory',
+              img: '/images/news3.jpg'
+            }
+          ].map((news, idx) => (
+            <Link key={idx} href={`/${locale}/news`} className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
+              <div>
+                <div className="h-44 relative overflow-hidden bg-slate-100">
+                  <Image 
+                    src={news.img} 
+                    alt={news.title} 
+                    fill 
+                    className="object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm px-2.5 py-0.5 rounded-full text-[10px] font-bold text-slate-800 uppercase tracking-wider shadow-xs">
+                    {news.category}
+                  </div>
+                </div>
+                <div className="p-5">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">{news.date}</span>
+                  <h3 className="text-sm font-bold text-slate-900 group-hover:text-amber-700 transition-colors leading-snug">
+                    {news.title}
+                  </h3>
+                </div>
+              </div>
+            </Link>
           ))}
         </div>
       </section>
 
-      {/* Impact Statistics */}
-      <section className="w-full max-w-6xl px-6 mb-32">
-        <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-[3rem] p-12 md:p-20 text-center relative overflow-hidden shadow-2xl">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
-          <div className="relative z-10 grid grid-cols-2 md:grid-cols-4 gap-12">
-            <div className="space-y-2">
-              <h2 className="text-4xl md:text-5xl font-black text-white">2.5k+</h2>
-              <p className="text-emerald-100 font-bold tracking-widest uppercase text-[10px]">Verified Farmers</p>
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-4xl md:text-5xl font-black text-white">GHS 12M</h2>
-              <p className="text-emerald-100 font-bold tracking-widest uppercase text-[10px]">Total Traded</p>
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-4xl md:text-5xl font-black text-white">15+</h2>
-              <p className="text-emerald-100 font-bold tracking-widest uppercase text-[10px]">Active Regions</p>
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-4xl md:text-5xl font-black text-white">99%</h2>
-              <p className="text-emerald-100 font-bold tracking-widest uppercase text-[10px]">Trust Rating</p>
-            </div>
+      {/* 5. CALL TO ACTION BANNER */}
+      <section className="w-full max-w-7xl px-4 sm:px-6 lg:px-8 mb-16">
+        <div className="bg-gradient-to-br from-amber-700 via-amber-800 to-amber-950 text-white rounded-3xl p-8 sm:p-12 lg:p-16 text-center space-y-6 relative overflow-hidden shadow-xl">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="max-w-2xl mx-auto space-y-3 relative z-10">
+            <h2 className="text-2xl sm:text-4xl font-bold tracking-tight">Ready to Trade with Confidence?</h2>
+            <p className="text-xs sm:text-sm text-amber-100/90 font-medium">
+              Join thousands of licensed Ghanaian farmers and verified commodity buyers on CocoaLink today.
+            </p>
           </div>
-          <div className="absolute bottom-4 left-0 right-0 text-center">
-            <p className="text-[10px] text-emerald-300/50 uppercase tracking-widest font-bold">Target figures for Q4 2026 pilot program</p>
+
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-3.5 relative z-10 pt-2">
+            <Link 
+              href={`/${locale}/auth/register?role=FARMER`}
+              className="w-full sm:w-auto bg-white text-slate-900 hover:bg-amber-50 px-7 py-3.5 rounded-xl font-bold text-sm shadow-md transition-all hover:scale-105 active:scale-95"
+            >
+              Join as a Farmer
+            </Link>
+            <Link 
+              href={`/${locale}/auth/register?role=BUYER`}
+              className="w-full sm:w-auto bg-amber-600 hover:bg-amber-500 text-white border border-amber-400/40 px-7 py-3.5 rounded-xl font-bold text-sm shadow-md transition-all hover:scale-105 active:scale-95"
+            >
+              Join as a Buyer
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Final Call to Action */}
-      <section className="w-full max-w-4xl px-6 py-24 text-center space-y-10">
-        <h2 className="text-4xl md:text-6xl font-black text-slate-800 tracking-tighter">Ready to revolutionize your harvest?</h2>
-        <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <Link 
-            href={`/${locale}/auth/register?role=FARMER`}
-            prefetch={true}
-            className="bg-slate-900 text-white px-10 py-5 rounded-full font-black text-xl shadow-2xl transition-all hover:-translate-y-1 active:scale-95"
-          >
-            Join as Farmer
-          </Link>
-          <Link 
-            href={`/${locale}/auth/register?role=BUYER`}
-            prefetch={true}
-            className="bg-white text-slate-900 border-2 border-slate-900 px-10 py-5 rounded-full font-black text-xl transition-all hover:-translate-y-1 active:scale-95 shadow-lg shadow-slate-200"
-          >
-            Become a Buyer
-          </Link>
+      {/* 6. ENTERPRISE FOOTER */}
+      <footer className="w-full bg-slate-950 text-slate-400 border-t border-slate-800 py-12 sm:py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-12 mb-12">
+          
+          {/* Brand & About */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-600 text-white font-black flex items-center justify-center text-base">
+                C
+              </div>
+              <span className="text-lg font-black text-white tracking-tight">CocoaLink Ghana</span>
+            </div>
+            <p className="text-xs text-slate-400 font-medium max-w-sm leading-relaxed">
+              Ghana's premier agricultural fintech and cocoa trade exchange platform. Connecting licensed cocoa farmers, agribusiness aggregators, and certified haulage drivers with escrow payment protection.
+            </p>
+            <div className="flex items-center gap-2 text-[11px] text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/60 px-3 py-1.5 rounded-xl w-max">
+              <ShieldCheck size={14} />
+              <span>COCOBOD Quality Standards Compliant</span>
+            </div>
+          </div>
+
+          {/* Quick Links */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider">Ecosystem</h4>
+            <ul className="space-y-2 text-xs">
+              <li><Link href={`/${locale}/listings`} className="hover:text-amber-400 transition-colors">Marketplace</Link></li>
+              <li><Link href={`/${locale}/dashboard/iot`} className="hover:text-amber-400 transition-colors">Smart Farm IoT</Link></li>
+              <li><Link href={`/${locale}/dashboard/ai-advisor`} className="hover:text-amber-400 transition-colors">AI Disease Advisor</Link></li>
+              <li><Link href={`/${locale}/orders`} className="hover:text-amber-400 transition-colors">Order Tracking Hub</Link></li>
+              <li><Link href={`/${locale}/news`} className="hover:text-amber-400 transition-colors">News & Reports</Link></li>
+            </ul>
+          </div>
+
+          {/* Trade Security */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider">Security & Escrow</h4>
+            <ul className="space-y-2 text-xs">
+              <li><span className="text-slate-400">MTN Mobile Money (*170#)</span></li>
+              <li><span className="text-slate-400">Telecel Cash (*110#)</span></li>
+              <li><span className="text-slate-400">AT Money Integration</span></li>
+              <li><span className="text-slate-400">Weighbridge Validation</span></li>
+              <li><span className="text-slate-400">GPS Transport Verification</span></li>
+            </ul>
+          </div>
+
+          {/* Regional Hubs */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider">Ghana Offices</h4>
+            <ul className="space-y-2 text-xs text-slate-400">
+              <li className="flex items-start gap-1.5">
+                <MapPin size={13} className="text-amber-500 shrink-0 mt-0.5" />
+                <span>Kumasi Cocoa House, Ashanti</span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <MapPin size={13} className="text-amber-500 shrink-0 mt-0.5" />
+                <span>Airport City, Accra</span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <MapPin size={13} className="text-amber-500 shrink-0 mt-0.5" />
+                <span>Takoradi Port Terminal, Western</span>
+              </li>
+            </ul>
+          </div>
+
         </div>
-      </section>
+
+        {/* Bottom Bar */}
+        <div className="max-w-7xl mx-auto pt-8 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-slate-500 font-medium">
+          <p>© 2026 CocoaLink Ghana. All rights reserved.</p>
+          <div className="flex items-center gap-4">
+            <span>Terms of Service</span>
+            <span>Privacy Policy</span>
+            <span>Escrow Guidelines</span>
+          </div>
+        </div>
+      </footer>
+
     </div>
   );
 }

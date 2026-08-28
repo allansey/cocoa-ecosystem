@@ -26,17 +26,10 @@ const nextConfig = {
   productionBrowserSourceMaps: false,
   // Optimize dynamic imports and bundle
   experimental: {
-    optimizePackageImports: ['lucide-react', '@lucide/react'],
+    optimizePackageImports: ['lucide-react', '@lucide/react', 'recharts', 'firebase', 'axios'],
   },
   // Font optimization
-  optimizeFonts: true,
-  // Cache static pages
-  onDemandEntries: {
-    maxInactiveAge: 1000 * 60 * 60, // 1 hour
-    pagesBufferLength: 5,
-  },
-  // SWR for revalidation
-  revalidateOnFocus: false,
+  optimizeFonts: false,
 };
  
 export default withNextIntl(nextConfig);

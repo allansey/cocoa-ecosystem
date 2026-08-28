@@ -43,6 +43,7 @@ ADVICE = {
 
 
 @app.route("/", methods=["GET"])
+@app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok", "service": "yolo_inference_server", "model_classes": model.names})
 

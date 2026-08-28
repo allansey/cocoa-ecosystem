@@ -41,8 +41,8 @@ router.get('/', async (req, res) => {
     // Search on grade and region
     if (search) {
       filter.OR = [
-        { grade: { contains: search, mode: 'insensitive' } },
-        { region: { contains: search, mode: 'insensitive' } }
+        { grade: { contains: search } },
+        { region: { contains: search } }
       ];
     }
 
@@ -66,6 +66,10 @@ router.get('/', async (req, res) => {
         region: true,
         photo: true,
         status: true,
+        moistureLevel: true,
+        aiHealthScore: true,
+        diseaseStatus: true,
+        harvestDate: true,
         createdAt: true,
         farmer: {
           select: { id: true, name: true, phone: true }
@@ -98,7 +102,11 @@ router.get('/:id', async (req, res) => {
       where: { id: req.params.id },
       include: {
         farmer: {
-          select: { id: true, name: true, phone: true }
+          select: { id: true, name: true, phone: true, email: true }
+        },
+        offers: {
+          where: { status: 'PENDING' },
+          select: { id: true, priceGhsPerTonne: true, quantityKg: true, createdAt: true }
         }
       }
     });
@@ -115,7 +123,10 @@ router.get('/:id', async (req, res) => {
 // POST new listing (Farmers only)
 router.post('/', [authMiddleware, farmerRoleMiddleware, upload.single('photo')], async (req, res) => {
   try {
-    const { grade, quantityKg, priceGhsPerTonne, region } = req.body;
+    const { 
+      grade, quantityKg, priceGhsPerTonne, region,
+      moistureLevel, aiHealthScore, diseaseStatus, harvestDate 
+    } = req.body;
     
     let photoUrl = null;
     if (req.file) {
@@ -131,6 +142,10 @@ router.post('/', [authMiddleware, farmerRoleMiddleware, upload.single('photo')],
         priceGhsPerTonne: parseFloat(priceGhsPerTonne),
         region,
         photo: photoUrl,
+        moistureLevel: moistureLevel ? parseFloat(moistureLevel) : null,
+        aiHealthScore: aiHealthScore ? parseFloat(aiHealthScore) : null,
+        diseaseStatus: diseaseStatus || 'healthy',
+        harvestDate: harvestDate ? new Date(harvestDate) : new Date(),
         farmerId: req.user.userId,
       }
     });
@@ -146,7 +161,10 @@ router.post('/', [authMiddleware, farmerRoleMiddleware, upload.single('photo')],
 router.put('/:id', [authMiddleware, farmerRoleMiddleware], async (req, res) => {
   try {
     const listingId = req.params.id;
-    const { grade, quantityKg, priceGhsPerTonne, region, photo, status } = req.body;
+    const { 
+      grade, quantityKg, priceGhsPerTonne, region, photo, status,
+      moistureLevel, aiHealthScore, diseaseStatus, harvestDate 
+    } = req.body;
 
     const listing = await prisma.listing.findUnique({ where: { id: listingId } });
     if (!listing) return res.status(404).json({ error: 'Listing not found.' });
@@ -158,6 +176,12 @@ router.put('/:id', [authMiddleware, farmerRoleMiddleware], async (req, res) => {
     if (quantityKg !== undefined) updateData.quantityKg = parseFloat(quantityKg);
     if (priceGhsPerTonne !== undefined) updateData.priceGhsPerTonne = parseFloat(priceGhsPerTonne);
     if (region !== undefined) updateData.region = region;
+    if (photo !== undefined) updateData.photo = photo;
+    if (status !== undefined) updateData.status = status;
+    if (moistureLevel !== undefined) updateData.moistureLevel = parseFloat(moistureLevel);
+    if (aiHealthScore !== undefined) updateData.aiHealthScore = parseFloat(aiHealthScore);
+    if (diseaseStatus !== undefined) updateData.diseaseStatus = diseaseStatus;
+    if (harvestDate !== undefined) updateData.harvestDate = new Date(harvestDate);
     if (photo !== undefined) updateData.photo = photo;
     if (status !== undefined) updateData.status = status;
 

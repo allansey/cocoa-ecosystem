@@ -7,13 +7,16 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
 export default function CreateListingPage({ params: { locale } }: { params: { locale: string } }) {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, _hasHydrated } = useAuthStore();
   const router = useRouter();
 
   const [grade, setGrade] = useState('Grade A');
   const [quantityKg, setQuantityKg] = useState('');
   const [priceGhsPerTonne, setPriceGhsPerTonne] = useState('');
   const [region, setRegion] = useState('Ashanti');
+  const [moistureLevel, setMoistureLevel] = useState('6.8');
+  const [aiHealthScore, setAiHealthScore] = useState('99.0');
+  const [diseaseStatus, setDiseaseStatus] = useState('healthy');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -28,10 +31,11 @@ export default function CreateListingPage({ params: { locale } }: { params: { lo
   };
 
   useEffect(() => {
+    if (!_hasHydrated) return;
     if (!isAuthenticated || user?.role !== 'FARMER') {
       router.push(`/${locale}/dashboard`);
     }
-  }, [isAuthenticated, user, router, locale]);
+  }, [_hasHydrated, isAuthenticated, user, router, locale]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +47,9 @@ export default function CreateListingPage({ params: { locale } }: { params: { lo
       formData.append('quantityKg', quantityKg);
       formData.append('priceGhsPerTonne', priceGhsPerTonne);
       formData.append('region', region);
+      formData.append('moistureLevel', moistureLevel);
+      formData.append('aiHealthScore', aiHealthScore);
+      formData.append('diseaseStatus', diseaseStatus);
       if (photoFile) {
         formData.append('photo', photoFile);
       }
@@ -144,9 +151,20 @@ export default function CreateListingPage({ params: { locale } }: { params: { lo
             >
               <option value="Ashanti">Ashanti Region</option>
               <option value="Western">Western Region</option>
+              <option value="Western North">Western North Region</option>
               <option value="Eastern">Eastern Region</option>
-              <option value="Brong-Ahafo">Brong-Ahafo Region</option>
+              <option value="Central">Central Region</option>
+              <option value="Greater Accra">Greater Accra Region</option>
               <option value="Volta">Volta Region</option>
+              <option value="Oti">Oti Region</option>
+              <option value="Bono">Bono Region</option>
+              <option value="Bono East">Bono East Region</option>
+              <option value="Ahafo">Ahafo Region</option>
+              <option value="Northern">Northern Region</option>
+              <option value="Savannah">Savannah Region</option>
+              <option value="North East">North East Region</option>
+              <option value="Upper East">Upper East Region</option>
+              <option value="Upper West">Upper West Region</option>
             </select>
           </div>
 

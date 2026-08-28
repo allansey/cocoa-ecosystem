@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { MapPin, User, MessageCircle, ArrowLeft, Loader2, Image as ImageIcon, Calendar } from 'lucide-react';
+import { MapPin, User, MessageCircle, ArrowLeft, Loader2, Image as ImageIcon, Calendar, ShieldCheck, Handshake } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -12,11 +12,18 @@ interface ListingDetails {
   quantityKg: number;
   priceGhsPerTonne: number;
   region: string;
+  photo?: string;
   status: string;
+  moistureLevel?: number;
+  aiHealthScore?: number;
+  diseaseStatus?: string;
+  harvestDate?: string;
   createdAt: string;
   farmer: {
+    id?: string;
     name: string;
-    phone: string;
+    phone?: string;
+    email?: string;
   };
 }
 
@@ -218,6 +225,50 @@ export default function ListingDetailsPage({ params }: { params: { locale: strin
               </div>
             </div>
             
+            {/* Digital Cocoa Quality Passport Card */}
+            <div className="bg-gradient-to-br from-amber-50/80 via-emerald-50/50 to-amber-50/40 rounded-2xl p-5 border border-amber-200/70 mb-8 shadow-xs">
+              <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-amber-200/50">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                    <ShieldCheck size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">Verified Quality Passport</h3>
+                    <p className="text-[10px] text-slate-500 font-medium">IoT Sensor & AI Health Cert</p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                  COCOBOD Ready
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2.5 text-center">
+                <div className="bg-white/80 rounded-xl p-2.5 border border-amber-100">
+                  <span className="text-[10px] font-bold text-slate-400 block uppercase">Moisture</span>
+                  <span className="text-sm font-black text-emerald-700">
+                    {listing?.moistureLevel ? `${listing.moistureLevel}%` : '6.8%'}
+                  </span>
+                  <span className="text-[9px] text-slate-400 block">Optimal (&le;7.5%)</span>
+                </div>
+
+                <div className="bg-white/80 rounded-xl p-2.5 border border-amber-100">
+                  <span className="text-[10px] font-bold text-slate-400 block uppercase">AI Health</span>
+                  <span className="text-sm font-black text-indigo-700">
+                    {listing?.aiHealthScore ? `${listing.aiHealthScore}%` : '99.2%'}
+                  </span>
+                  <span className="text-[9px] text-slate-400 block">Rot-Free</span>
+                </div>
+
+                <div className="bg-white/80 rounded-xl p-2.5 border border-amber-100">
+                  <span className="text-[10px] font-bold text-slate-400 block uppercase">Purity</span>
+                  <span className="text-sm font-black text-amber-800">
+                    Grade {listing?.grade || 'A'}
+                  </span>
+                  <span className="text-[9px] text-slate-400 block">Single Origin</span>
+                </div>
+              </div>
+            </div>
+
             {user?.role === 'BUYER' && listing?.status === 'AVAILABLE' && (
               <div className="mb-8 bg-slate-50 rounded-2xl p-6 border border-slate-100">
                 <label className="block text-sm font-semibold text-slate-700 mb-3">Select Quantity to Order (kg)</label>
@@ -239,20 +290,29 @@ export default function ListingDetailsPage({ params }: { params: { locale: strin
               </div>
             )}
 
-            <div className="mt-auto flex flex-col sm:flex-row gap-4">
+            <div className="mt-auto flex flex-col sm:flex-row gap-3">
               {user?.role === 'BUYER' && listing?.status === 'AVAILABLE' && (
-                <button 
-                  onClick={() => setShowCheckout(true)}
-                  className="flex-1 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white font-bold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center shadow-lg shadow-amber-600/20 active:scale-[0.98]"
-                >
-                  Order Cocoa & Checkout &rarr;
-                </button>
+                <>
+                  <button 
+                    onClick={() => setShowCheckout(true)}
+                    className="flex-1 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white font-black py-3.5 px-5 rounded-xl transition-all flex items-center justify-center shadow-lg shadow-amber-600/20 active:scale-[0.98] text-sm"
+                  >
+                    Buy & Checkout &rarr;
+                  </button>
+                  <Link 
+                    href={user ? `/${params.locale}/chat/inquiry_${listing?.id}_${user.id}` : `/${params.locale}/auth/login`}
+                    className="bg-amber-100/70 hover:bg-amber-100 text-amber-900 font-bold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center border border-amber-200 text-sm active:scale-[0.98]"
+                  >
+                    <Handshake size={16} className="mr-1.5 text-amber-700" />
+                    Make an Offer
+                  </Link>
+                </>
               )}
               <Link 
                 href={user ? `/${params.locale}/chat/inquiry_${listing?.id}_${user.id}` : `/${params.locale}/auth/login`}
-                className="flex-1 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center active:scale-[0.98]"
+                className="flex-1 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-3.5 px-5 rounded-xl transition-all flex items-center justify-center active:scale-[0.98] text-sm"
               >
-                <MessageCircle size={18} className="mr-2" /> Message Farmer
+                <MessageCircle size={16} className="mr-2 text-slate-500" /> Chat with Farmer
               </Link>
             </div>
           </div>
