@@ -48,6 +48,7 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
 
   const [isRecording, setIsRecording] = useState(false);
   const [recordingStatus, setRecordingStatus] = useState("Tap to start recording");
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
   // SSE real-time alert
   const [sseAlert, setSseAlert] = useState<SSEAlert | null>(null);
@@ -55,8 +56,33 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+  const activeAudioInstanceRef = useRef<HTMLAudioElement | null>(null);
   const sseAlertAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const playAudioData = (base64Data: string, mime: string = 'audio/wav') => {
+    if (!base64Data) return;
+    try {
+      if (activeAudioInstanceRef.current) {
+        activeAudioInstanceRef.current.pause();
+        activeAudioInstanceRef.current = null;
+      }
+      const audio = new Audio(`data:${mime};base64,${base64Data}`);
+      activeAudioInstanceRef.current = audio;
+
+      audio.onplay = () => setIsPlayingAudio(true);
+      audio.onpause = () => setIsPlayingAudio(false);
+      audio.onended = () => setIsPlayingAudio(false);
+      audio.onerror = () => setIsPlayingAudio(false);
+
+      audio.play().catch(err => {
+        console.warn("Browser auto-play warning:", err);
+        setIsPlayingAudio(false);
+      });
+    } catch (e) {
+      console.warn("Could not play audio:", e);
+      setIsPlayingAudio(false);
+    }
+  };
 
   // Connect to SSE stream for real-time push alerts if voice server is reachable
   useEffect(() => {
@@ -187,12 +213,11 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
           detection: { status, confidence, advice: englishReply }
         });
 
-        // Auto-play audio if available
-        if (audioBase64 && audioPlayerRef.current) {
-          audioPlayerRef.current.src = `data:${audioMime};base64,${audioBase64}`;
-          audioPlayerRef.current.play().catch(() => {});
+        // Auto-play spoken Twi audio immediately without requiring farmer to click play
+        if (audioBase64) {
+          playAudioData(audioBase64, audioMime);
         }
-      }, 400);
+      }, 300);
 
     } catch (err: any) {
       console.error(err);
@@ -284,7 +309,12 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
           } : null
         });
         setRecordingStatus("Tap to ask another question");
-      }, 500);
+
+        // Auto-play spoken Twi reply immediately
+        if (data.audio_base64) {
+          playAudioData(data.audio_base64, data.audio_mime || 'audio/wav');
+        }
+      }, 400);
 
     } catch (err: any) {
       console.error(err);
@@ -473,17 +503,45 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
 
                 {/* Audio Player */}
                 {results.audioBase64 && (
-                  <div className="mt-4 bg-white/5 p-4 rounded-2xl flex flex-col items-center gap-3 border border-white/10 shadow-lg">
-                    <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
-                      <Volume2 size={18} /> Listen in Twi
+                  <div className="mt-4 bg-stone-800/90 border border-amber-500/40 rounded-2xl p-4 shadow-xl flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${isPlayingAudio ? 'bg-amber-500 text-stone-950 animate-pulse' : 'bg-stone-900 text-amber-400 border border-stone-700'}`}>
+                          <Volume2 size={20} className={isPlayingAudio ? 'animate-bounce' : ''} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-white uppercase tracking-wider">Twi Voice Advisory</h4>
+                          <p className="text-[11px] text-amber-400 font-medium">
+                            {isPlayingAudio ? "🔊 Playing spoken Twi note..." : "🎧 Audio advisory ready"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isPlayingAudio && activeAudioInstanceRef.current) {
+                            activeAudioInstanceRef.current.pause();
+                            setIsPlayingAudio(false);
+                          } else if (results.audioBase64) {
+                            playAudioData(results.audioBase64, results.audioMime || 'audio/wav');
+                          }
+                        }}
+                        className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                      >
+                        {isPlayingAudio ? (
+                          <>
+                            <Square size={14} className="fill-current" />
+                            <span>Pause</span>
+                          </>
+                        ) : (
+                          <>
+                            <Volume2 size={14} />
+                            <span>Listen Again</span>
+                          </>
+                        )}
+                      </button>
                     </div>
-                    <audio
-                      ref={audioPlayerRef}
-                      src={`data:${results.audioMime};base64,${results.audioBase64}`}
-                      controls
-                      autoPlay
-                      className="w-full"
-                    />
                   </div>
                 )}
 
