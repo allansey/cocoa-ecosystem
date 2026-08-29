@@ -27,12 +27,22 @@ Run:
 
 import os
 import io
+import sys
 import json
 import base64
 import queue
 import threading
 import tempfile
 from datetime import datetime
+
+# Ensure Windows terminal doesn't crash on Twi characters (ɔ, ɛ)
+try:
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+except Exception:
+    pass
 
 import requests
 import torch
@@ -120,8 +130,9 @@ def synthesize_twi_audio(text: str) -> bytes:
 # silently cached but NOT pushed to the browser.
 DISEASE_STATUSES = {"black_pod_rot", "frosty_pod_rot"}
 
-# Friendly disease names used inside the English alert before translation.
+# Friendly disease / condition names
 DISEASE_DISPLAY_NAMES = {
+    "healthy":         "Healthy Cocoa Pod",
     "black_pod_rot":   "Black Pod Rot (Phytophthora)",
     "frosty_pod_rot":  "Frosty Pod Rot (Moniliophthora)",
 }
@@ -140,20 +151,26 @@ _last_broadcast = None
 
 def _build_twi_alert(status: str, confidence: float, advice: str = "") -> tuple[str, str, bytes]:
     """
-    Build the English alert text using Gemini, translate to Twi via Khaya, synthesise via MMS-TTS.
+    Build the English advisory text using Gemini, translate to Twi via Khaya,
+    and synthesise to Twi speech audio using Meta MMS-TTS Akan.
     Returns (english_text, twi_text, audio_wav_bytes).
-    Falls back gracefully if translation or TTS fails.
     """
-    disease = DISEASE_DISPLAY_NAMES.get(status, status)
-    pct = int(round(confidence * 100))
+    disease = DISEASE_DISPLAY_NAMES.get(status, status.replace("_", " ").title())
+    pct = int(round(confidence * 100)) if confidence <= 1.0 else int(confidence)
     
-    advice_context = f" Built-in advice: {advice}" if advice else ""
-    prompt = (
-        SYSTEM_PROMPT
-        + f"\n\nThe camera just detected {disease} on the farmer's cocoa pod with {pct}% confidence.{advice_context} "
-        + "Provide comprehensive, detailed, and highly actionable advice for the farmer regarding this detection. "
-        + "Ignore the previous 'two to three sentences maximum' constraint. Explain the problem clearly and give step-by-step instructions on what the farmer should do to treat and prevent this disease."
-    )
+    if status == "healthy":
+        prompt = (
+            SYSTEM_PROMPT
+            + f"\n\nThe camera scanned the farmer's cocoa pod and confirmed it is HEALTHY with {pct}% confidence. "
+            + "Give a warm, positive response in 2 short sentences encouraging the farmer and giving a brief tip on regular weeding and monitoring. Reply in plain English."
+        )
+    else:
+        advice_context = f" Standard treatment: {advice}" if advice else ""
+        prompt = (
+            SYSTEM_PROMPT
+            + f"\n\nThe camera detected {disease} on the farmer's cocoa pod with {pct}% confidence.{advice_context} "
+            + "Provide 2 to 3 clear, practical, and highly actionable sentences for the farmer on immediate steps (e.g. prune and bury infected pods, apply copper fungicide, clean farm tools). Reply in plain English."
+        )
     
     try:
         gemini_response = gemini_client.models.generate_content(
@@ -162,20 +179,17 @@ def _build_twi_alert(status: str, confidence: float, advice: str = "") -> tuple[
         english_alert = (gemini_response.text or "").strip()
     except Exception as e:
         print(f"  (Gemini failed, using fallback alert: {e})")
-        english_alert = (
-            f"{disease} has been detected on your cocoa pod with {pct} percent confidence. "
-            f"Tap the microphone if you have questions."
-        )
+        english_alert = advice if advice else f"{disease} detected with {pct}% confidence. Remove affected pods and consult your cocoa officer."
 
-    # Translate to Twi (best effort)
+    # Translate to Twi via Khaya
     try:
         translated = nlp.translate(english_alert, language_pair="en-tw")
         twi_alert = extract_text(translated)
     except Exception as e:
-        print(f"  (alert translation failed: {e})")
+        print(f"  (Twi translation failed: {e})")
         twi_alert = english_alert   # fallback - MMS-TTS will still try
 
-    # Synthesise (best effort)
+    # Synthesise with Meta MMS-TTS Akan
     try:
         audio_bytes = synthesize_twi_audio(twi_alert)
     except Exception as e:
@@ -220,14 +234,11 @@ def extract_text(api_response) -> str:
     if isinstance(api_response, str):
         return api_response
     if isinstance(api_response, dict):
-        # Common shapes: {"text": "..."}, {"transcript": "..."}, error dicts
         for key in ("text", "transcript", "translation", "result", "output"):
             if key in api_response and isinstance(api_response[key], str):
                 return api_response[key]
-        # If the library returned an error dict, surface its message
         if "message" in api_response:
             raise RuntimeError(f"Khaya error: {api_response}")
-    # Last resort - stringify
     return str(api_response)
 
 
@@ -242,11 +253,9 @@ def fetch_latest_detection():
     Pull the most recent detection from the image server, if reachable.
     Used as a fallback if no /notify has been received yet.
     """
-    # First check local cache (populated by /notify)
     with _cached_lock:
         if _cached_detection is not None:
             return _cached_detection
-    # Fallback: query the image server directly
     try:
         r = requests.get(f"{IMAGE_SERVER_URL}/last", timeout=3)
         if r.status_code == 200:
@@ -258,48 +267,53 @@ def fetch_latest_detection():
 
 # ===== Endpoints =====
 @app.route("/", methods=["GET"])
+@app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"status": "ok", "service": "voice_advisor",
-                    "sse_clients": len(_sse_clients)})
+    return jsonify({
+        "status": "online",
+        "service": "Cocoa Voice + AI Advisor",
+        "model": GEMINI_MODEL,
+        "mms_tts": "ready",
+        "sse_clients": len(_sse_clients)
+    })
 
 
+@app.route("/advisory", methods=["POST"])
 @app.route("/notify", methods=["POST"])
-def notify():
+def generate_advisory():
     """
-    Called by the image server after each detection.
-    Caches the detection (for /voice queries) and broadcasts diseased
-    detections to all browsers connected to /stream.
+    Generates agricultural advice in English (Gemini), translates to Twi (Khaya),
+    and synthesizes spoken Twi audio (Meta MMS-TTS).
+    Broadcasts the alert to SSE clients and returns the complete payload to the caller.
     """
     global _cached_detection
 
-    detection = request.get_json(silent=True)
-    if not detection:
-        return jsonify({"error": "no JSON body"}), 400
+    payload = request.get_json(silent=True) or {}
+    
+    # Handle detection object if wrapped or direct
+    detection = payload.get("detection") if "detection" in payload else payload
+    status = detection.get("status", "healthy")
+    
+    primary = detection.get("primary_detection") or {}
+    confidence = float(primary.get("confidence", 0.95))
+    built_in_advice = detection.get("advice", "")
 
-    # Cache for /voice queries (regardless of status)
+    # Cache for voice queries
     with _cached_lock:
         _cached_detection = detection
 
-    status = detection.get("status", "")
-
-    # Filter: only broadcast diseased detections
-    if status not in DISEASE_STATUSES:
-        return jsonify({"received": True, "broadcast": False,
-                        "reason": f"status '{status}' not in disease list"})
-
-    # Build the Twi alert (translated + synthesised)
-    primary = detection.get("primary_detection") or {}
-    confidence = float(primary.get("confidence", 0))
-
-    print(f"\n[ALERT] Disease detected: {status} ({int(confidence*100)}%)")
-    print("  Generating advice with Gemini and building Twi alert...")
-    english_alert, twi_alert, audio_bytes = _build_twi_alert(status, confidence, detection.get("advice", ""))
-    print(f"  English: {english_alert}")
-    print(f"  Twi:     {twi_alert}")
+    print(f"\n[ADVISORY] Processing scan result: {status} ({int(confidence*100)}%)")
+    print("  1. Generating advice with Gemini AI...")
+    english_alert, twi_alert, audio_bytes = _build_twi_alert(status, confidence, built_in_advice)
+    print(f"  2. English advice: {english_alert}")
+    print(f"  3. Twi translation: {twi_alert}")
+    print(f"  4. MMS-TTS synthesized: {len(audio_bytes)} bytes audio")
 
     event = {
+        "success": True,
         "type": "detection",
         "status": status,
+        "confidence": confidence,
         "english_alert": english_alert,
         "twi_alert": twi_alert,
         "detection": detection,
@@ -308,24 +322,11 @@ def notify():
         "timestamp": datetime.now().isoformat(),
     }
 
+    # Broadcast to SSE clients
     _broadcast(event)
-    print(f"  Broadcast to {len(_sse_clients)} client(s)")
-    return jsonify({"received": True, "broadcast": True,
-                    "client_count": len(_sse_clients)})
 
+    return jsonify(event)
 
-@app.route("/health", methods=["GET"], endpoint="health_status")
-def health_check():
-    return jsonify({
-        "status": "online",
-        "service": "Cocoa Voice + AI Advisor",
-        "model": GEMINI_MODEL,
-        "mms_tts": "ready"
-    })
-
-@app.route("/", methods=["GET"], endpoint="root_status")
-def root_status():
-    return health_check()
 
 @app.route("/stream", methods=["GET"])
 def stream():

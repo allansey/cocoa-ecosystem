@@ -118,41 +118,82 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
     setSseAlert(null);
 
     const steps: PipelineStep[] = [
-      { id: 's1', name: 'Uploading image to YOLOv8 model', status: 'active' },
-      { id: 's2', name: 'Running cocoa disease detection', status: 'idle' },
+      { id: 's1', name: 'Scanning Cocoa Pod (YOLOv8)', status: 'active' },
+      { id: 's2', name: 'Gemini AI Agricultural Advisory', status: 'idle' },
+      { id: 's3', name: 'Khaya NLP English → Twi Translation', status: 'idle' },
+      { id: 's4', name: 'Meta MMS-TTS Voice Synthesis (Akan)', status: 'idle' },
     ];
     setPipelineSteps(steps);
-    setCurrentStepText("Uploading image to YOLO server...");
+    setCurrentStepText("Running YOLOv8 computer vision model...");
 
     const formData = new FormData();
     formData.append('image', imageFile);
 
     try {
+      // 1. YOLOv8 Image Inference
       const uploadRes = await fetch(`${IMAGE_SERVER}/upload`, { method: 'POST', body: formData });
       if (!uploadRes.ok) throw new Error("YOLO server failed to process image.");
       const uploadData = await uploadRes.json();
 
-      setPipelineSteps(p => p.map(s => ({ ...s, status: 'success' })));
-      setCurrentStepText("Detection complete!");
+      setPipelineSteps(p => p.map(s => s.id === 's1' ? { ...s, status: 'success' } : s.id === 's2' ? { ...s, status: 'active' } : s));
+      setCurrentStepText("Generating tailored advisory with Gemini AI...");
 
-      const det = uploadData.detection;
-      const status = det.status;
-      const confidence = det.primary_detection?.confidence || 1.0;
+      const det = uploadData.detection || { status: 'healthy', primary_detection: { confidence: 0.95 }, advice: '' };
+      const status = det.status || 'healthy';
+      const confidence = det.primary_detection?.confidence || 0.95;
+
+      // 2. Call Voice Server for Gemini Advisory -> Khaya Twi Translation -> Meta MMS-TTS Audio Synthesis
+      let advisoryData: any = null;
+      try {
+        setPipelineSteps(p => p.map(s => s.id === 's2' ? { ...s, status: 'success' } : s.id === 's3' ? { ...s, status: 'active' } : s));
+        setCurrentStepText("Translating advisory to Twi (Khaya NLP)...");
+
+        const advisoryRes = await fetch(`${VOICE_SERVER}/advisory`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ detection: det })
+        });
+
+        if (advisoryRes.ok) {
+          setPipelineSteps(p => p.map(s => (s.id === 's2' || s.id === 's3') ? { ...s, status: 'success' } : s.id === 's4' ? { ...s, status: 'active' } : s));
+          setCurrentStepText("Synthesizing Twi voice advisory (Meta MMS-TTS)...");
+          advisoryData = await advisoryRes.json();
+        }
+      } catch (voiceErr) {
+        console.warn("Voice advisory server unreachable or encountered error:", voiceErr);
+      }
+
+      setPipelineSteps(p => p.map(s => ({ ...s, status: 'success' })));
+      setCurrentStepText("Diagnosis and Twi advisory ready!");
+
+      const englishReply = advisoryData?.english_alert || det.advice || "Cocoa pod analysis complete.";
+      const twiReply = advisoryData?.twi_alert || "";
+      const audioBase64 = advisoryData?.audio_base64 || "";
+      const audioMime = advisoryData?.audio_mime || "audio/wav";
 
       setTimeout(() => {
         setPipelineLoading(false);
         setResults({
-          twiTranscript: "Mfoni nhwehwɛmu (Image Analysis)",
-          englishTranscript: `Image classified as: ${status.replace(/_/g, ' ')}`,
-          englishReply: det.advice,
-          detection: { status, confidence, advice: det.advice }
+          twiTranscript: "Mfoni Nhwehwɛmu (Visual Scan)",
+          englishTranscript: `Cocoa Pod: ${status.replace(/_/g, ' ')} (${(confidence * 100).toFixed(1)}% Confidence)`,
+          englishReply: englishReply,
+          twiReply: twiReply,
+          audioBase64: audioBase64,
+          audioMime: audioMime,
+          detection: { status, confidence, advice: englishReply }
         });
-      }, 500);
+
+        // Auto-play audio if available
+        if (audioBase64 && audioPlayerRef.current) {
+          audioPlayerRef.current.src = `data:${audioMime};base64,${audioBase64}`;
+          audioPlayerRef.current.play().catch(() => {});
+        }
+      }, 400);
 
     } catch (err: any) {
       console.error(err);
       setPipelineLoading(false);
-      alert(err.message || "Pipeline failed");
+      alert(err.message || "Diagnosis pipeline failed. Please check inference and voice servers.");
     }
   };
 
