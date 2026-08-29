@@ -90,8 +90,8 @@ router.get('/', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error fetching listings.' });
+    console.error('[Listings Fetch Error]:', error);
+    res.status(500).json({ error: 'Server error fetching listings.', details: error.message || String(error) });
   }
 });
 
