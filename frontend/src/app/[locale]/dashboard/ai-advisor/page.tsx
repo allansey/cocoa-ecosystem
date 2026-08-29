@@ -3,8 +3,8 @@ import { useState, useRef, useEffect } from 'react';
 import { Camera, Upload, Loader2, ArrowLeft, Brain, Volume2, ShieldCheck, AlertCircle, Mic, Square, CheckCircle, Circle, Bell } from 'lucide-react';
 import Link from 'next/link';
 
-const IMAGE_SERVER = process.env.NEXT_PUBLIC_AI_IMAGE_SERVER_URL || "http://localhost:5002";
-const VOICE_SERVER = process.env.NEXT_PUBLIC_VOICE_SERVER_URL || "http://localhost:5001";
+const IMAGE_SERVER = process.env.NEXT_PUBLIC_AI_IMAGE_SERVER_URL || "http://127.0.0.1:5002";
+const VOICE_SERVER = process.env.NEXT_PUBLIC_VOICE_SERVER_URL || "http://127.0.0.1:5001";
 
 interface Detection {
   status: string;
@@ -132,8 +132,12 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
     try {
       // 1. YOLOv8 Image Inference
       const uploadRes = await fetch(`${IMAGE_SERVER}/upload`, { method: 'POST', body: formData });
-      if (!uploadRes.ok) throw new Error("YOLO server failed to process image.");
-      const uploadData = await uploadRes.json();
+      if (!uploadRes.ok) {
+        const errText = await uploadRes.text().catch(() => '');
+        throw new Error(`YOLO inference server returned error ${uploadRes.status}: ${errText.substring(0, 120)}`);
+      }
+      const uploadData = await uploadRes.json().catch(() => null);
+      if (!uploadData) throw new Error("Invalid response format from YOLO server.");
 
       setPipelineSteps(p => p.map(s => s.id === 's1' ? { ...s, status: 'success' } : s.id === 's2' ? { ...s, status: 'active' } : s));
       setCurrentStepText("Generating tailored advisory with Gemini AI...");
@@ -157,7 +161,7 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
         if (advisoryRes.ok) {
           setPipelineSteps(p => p.map(s => (s.id === 's2' || s.id === 's3') ? { ...s, status: 'success' } : s.id === 's4' ? { ...s, status: 'active' } : s));
           setCurrentStepText("Synthesizing Twi voice advisory (Meta MMS-TTS)...");
-          advisoryData = await advisoryRes.json();
+          advisoryData = await advisoryRes.json().catch(() => null);
         }
       } catch (voiceErr) {
         console.warn("Voice advisory server unreachable or encountered error:", voiceErr);

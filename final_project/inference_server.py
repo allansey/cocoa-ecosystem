@@ -122,14 +122,17 @@ def upload():
             except OSError:
                 pass
 
-        # Notify the voice server about the detection (fire-and-forget)
-        try:
-            import requests
-            requests.post("http://localhost:5001/notify",
-                          json=latest_detection, timeout=3)
-            print(f"[YOLO] Notified voice server (:5001) about: {latest_detection['status']}")
-        except Exception as e:
-            print(f"[YOLO] Could not notify voice server: {e}")
+        # Notify the voice server in background thread (non-blocking)
+        def _notify_async(det_payload):
+            try:
+                import requests
+                requests.post("http://localhost:5001/notify", json=det_payload, timeout=15)
+                print(f"[YOLO] Notified voice server (:5001) about: {det_payload.get('status')}")
+            except Exception as e:
+                print(f"[YOLO] Background notify to voice server: {e}")
+
+        import threading
+        threading.Thread(target=_notify_async, args=(latest_detection,), daemon=True).start()
 
 
 @app.route("/reset", methods=["POST"])
