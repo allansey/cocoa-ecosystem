@@ -95,6 +95,31 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET my listings (Logged-in Farmers)
+router.get('/my-listings', [authMiddleware, farmerRoleMiddleware], async (req, res) => {
+  try {
+    const farmerId = req.user.userId;
+    const listings = await prisma.listing.findMany({
+      where: { farmerId },
+      include: {
+        farmer: {
+          select: { id: true, name: true, phone: true, email: true }
+        },
+        offers: {
+          where: { status: 'PENDING' },
+          select: { id: true, priceGhsPerTonne: true, quantityKg: true, createdAt: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json(listings);
+  } catch (error) {
+    console.error('[Listings API Error (my-listings)]:', error);
+    res.status(500).json({ error: 'Server error fetching your listings.' });
+  }
+});
+
 // GET listing by ID
 router.get('/:id', async (req, res) => {
   try {
