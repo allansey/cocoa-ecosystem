@@ -49,10 +49,14 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
         <div className="relative z-10 max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-10 lg:gap-14">
           
           {/* Hero Left Content */}
-          <div className="flex-1 text-center lg:text-left space-y-5 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-bold backdrop-blur-md shadow-xs">
-              <Sprout size={15} className="text-amber-400" />
-              <span>COCOBOD Grade-Certified Digital Exchange</span>
+          <div className="flex-1 text-center lg:text-left space-y-6 max-w-2xl">
+            
+            {/* Clean Enterprise Eyebrow */}
+            <div className="flex items-center justify-center lg:justify-start gap-2.5 text-xs font-bold uppercase tracking-widest text-amber-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span>Ghana Cocoa Commodity Exchange</span>
+              <span className="text-white/30">•</span>
+              <span className="text-amber-200/80 font-semibold normal-case tracking-normal text-xs">COCOBOD Grade Standards</span>
             </div>
 
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.1]">
@@ -67,7 +71,7 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3.5 pt-2">
               <Link 
                 href={`/${locale}/listings`}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-7 py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-amber-600/30 transition-all hover:scale-105 active:scale-95"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-7 py-3.5 rounded-xl font-bold text-sm shadow-md transition-all hover:scale-105 active:scale-95"
               >
                 <span>Explore Cocoa Batches</span>
                 <ArrowRight size={16} />
@@ -77,20 +81,19 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
                 href={`/${locale}/auth/register?role=FARMER`}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 text-white border border-white/20 px-7 py-3.5 rounded-xl font-bold text-sm backdrop-blur-md transition-all hover:border-white/40 active:scale-95"
               >
-                <Award size={16} className="text-amber-300" />
                 <span>Sell Your Harvest</span>
               </Link>
             </div>
 
             {/* Trust Badges */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-5 pt-3 text-xs text-amber-200/80 font-medium">
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-6 pt-3 text-xs text-amber-200/80 font-medium">
               <div className="flex items-center gap-1.5">
                 <ShieldCheck size={16} className="text-emerald-400 shrink-0" />
                 <span>100% MoMo Escrow Protection</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
-                <span>COCOBOD Quality Standard</span>
+                <span>COCOBOD Quality Verified</span>
               </div>
             </div>
           </div>
@@ -99,7 +102,7 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
           <div className="w-full lg:w-[460px] shrink-0 space-y-4">
             
             {/* Top Cocoa Pods Visual Card */}
-            <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-white/20 bg-slate-900 group">
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/15 bg-slate-900 group">
               <div className="h-56 relative">
                 <Image 
                   src="/images/hero-harvest-pods.jpg" 
@@ -109,14 +112,14 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
                 
-                <div className="absolute top-3.5 left-3.5 bg-amber-500/90 backdrop-blur-md text-white text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-1.5">
-                  <Award size={13} />
-                  <span>Grade A Fresh Harvest</span>
+                <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[11px] font-semibold px-3 py-1 rounded-lg border border-white/15 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  <span>Grade A Single Origin</span>
                 </div>
 
-                <div className="absolute top-3.5 right-3.5 bg-emerald-500/90 backdrop-blur-md text-white text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                  <span>IoT Moisture 6.8%</span>
+                <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-emerald-300 text-[11px] font-semibold px-3 py-1 rounded-lg border border-white/15 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Moisture 6.8%</span>
                 </div>
               </div>
 
@@ -127,12 +130,12 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-white">Sun-Dried Fermented Beans</h4>
-                    <p className="text-[11px] text-amber-200/80 font-medium">Ashanti, Western & Eastern Regions</p>
+                    <p className="text-[11px] text-amber-200/70 font-medium">Ashanti & Western Regions</p>
                   </div>
                 </div>
 
-                <span className="text-[11px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-500/30 px-2.5 py-1 rounded-xl">
-                  AI Scan 99.4%
+                <span className="text-[11px] font-medium text-slate-300 bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg">
+                  AI Verified
                 </span>
               </div>
             </div>

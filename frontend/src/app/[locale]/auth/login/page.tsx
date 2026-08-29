@@ -66,8 +66,8 @@ export default function LoginPage({ params: { locale } }: { params: { locale: st
           </div>
 
           <div className="relative z-10 space-y-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-bold">
-              <Award size={14} className="text-amber-400" />
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
               <span>COCOBOD Certified Exchange</span>
             </div>
             <h2 className="text-2xl font-bold tracking-tight leading-snug">
