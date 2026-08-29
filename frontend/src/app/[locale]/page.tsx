@@ -35,10 +35,10 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
       <section className="relative w-full overflow-hidden bg-gradient-to-b from-amber-950 via-amber-900 to-slate-950 text-white py-16 sm:py-20 lg:py-28 px-4 sm:px-6 lg:px-8">
         
         {/* Background Ambient Cocoa Imagery & Dark Vignette */}
-        <div className="absolute inset-0 z-0 opacity-25 pointer-events-none">
+        <div className="absolute inset-0 z-0 opacity-30 pointer-events-none">
           <Image 
-            src="/images/hero-pods.jpg" 
-            alt="Ghana Cocoa Pods" 
+            src="/images/hero-harvest-pods.jpg" 
+            alt="Ghana Harvested Cocoa Pods" 
             fill 
             className="object-cover scale-105 filter blur-[1px]"
             priority
@@ -100,18 +100,18 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
             
             {/* Top Cocoa Pods Visual Card */}
             <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-white/20 bg-slate-900 group">
-              <div className="h-52 relative">
+              <div className="h-56 relative">
                 <Image 
-                  src="/images/hero-pods.jpg" 
-                  alt="Harvested Golden Cocoa Pods" 
+                  src="/images/hero-harvest-pods.jpg" 
+                  alt="Fresh Ghanaian Cocoa Pods Harvest" 
                   fill 
                   className="object-cover group-hover:scale-105 transition-transform duration-700"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
                 
                 <div className="absolute top-3.5 left-3.5 bg-amber-500/90 backdrop-blur-md text-white text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-1.5">
                   <Award size={13} />
-                  <span>Grade A Single Origin</span>
+                  <span>Grade A Fresh Harvest</span>
                 </div>
 
                 <div className="absolute top-3.5 right-3.5 bg-emerald-500/90 backdrop-blur-md text-white text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-1">
@@ -122,12 +122,12 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
 
               <div className="p-4 bg-slate-950/90 backdrop-blur-md flex items-center justify-between border-t border-white/10">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl overflow-hidden relative shrink-0 border border-white/20">
-                    <Image src="/images/hero-beans.jpg" alt="Sun Dried Cocoa Beans" fill className="object-cover" />
+                  <div className="w-11 h-11 rounded-xl overflow-hidden relative shrink-0 border border-white/20">
+                    <Image src="/images/hero-hands-beans.jpg" alt="Selected Cocoa Beans" fill className="object-cover" />
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-white">Sun-Dried Fermented Beans</h4>
-                    <p className="text-[11px] text-amber-200/80 font-medium">Ashanti & Western Regions</p>
+                    <p className="text-[11px] text-amber-200/80 font-medium">Ashanti, Western & Eastern Regions</p>
                   </div>
                 </div>
 
@@ -281,19 +281,19 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
               date: 'May 06, 2026',
               title: 'Ghana Cocoa Output Forecasted to Rise 15% This Season',
               category: 'Market Report',
-              img: '/images/farm.jpg'
+              img: '/images/hero-harvest-pods.jpg'
             },
             {
               date: 'April 28, 2026',
               title: 'YOLOv8 Computer Vision Launches for Early Black Pod Diagnosis',
               category: 'Technology',
-              img: '/images/news2.jpg'
+              img: '/images/hero-burlap-sack.jpg'
             },
             {
               date: 'April 22, 2026',
               title: 'Moisture Control Best Practices for Export Quality Grade A Beans',
               category: 'Advisory',
-              img: '/images/news3.jpg'
+              img: '/images/hero-hands-beans.jpg'
             }
           ].map((news, idx) => (
             <Link key={idx} href={`/${locale}/news`} className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">

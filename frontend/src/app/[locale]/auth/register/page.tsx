@@ -74,10 +74,10 @@ function RegisterForm({ locale }: { locale: string }) {
         
         {/* Left Side: Branded Showcase */}
         <div className="hidden md:flex md:w-5/12 bg-gradient-to-br from-amber-950 via-amber-900 to-slate-950 p-8 lg:p-10 text-white flex-col justify-between relative overflow-hidden">
-          <div className="absolute inset-0 opacity-40 pointer-events-none">
+          <div className="absolute inset-0 opacity-45 pointer-events-none">
             <Image 
-              src="/images/hero-beans.jpg" 
-              alt="Ghana Cocoa Agriculture" 
+              src="/images/hero-burlap-sack.jpg" 
+              alt="Premium Ghana Cocoa Beans in Jute Sack" 
               fill 
               className="object-cover"
               priority
