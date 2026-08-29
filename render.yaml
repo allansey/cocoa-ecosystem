@@ -1,10 +1,12 @@
 services:
+  # 1. Node.js Express REST API & Realtime Backend
   - type: web
     name: cocoa-backend
     env: node
     rootDir: backend
     buildCommand: npm install && npx prisma generate
     startCommand: node index.js
+    healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -12,3 +14,36 @@ services:
         generateValue: true
       - key: NODE_ENV
         value: production
+
+  # 2. Python YOLOv8 Cocoa Disease Inference Server
+  - type: web
+    name: cocoa-yolo-inference
+    env: python
+    rootDir: final_project
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: python inference_server.py
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+
+  # 3. Python Voice + Gemini AI + Khaya Twi + MMS-TTS Advisor Server
+  - type: web
+    name: cocoa-voice-advisor
+    env: python
+    rootDir: final_project
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: python voice_server.py
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: GHANA_NLP_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: IMAGE_SERVER_URL
+        fromService:
+          type: web
+          name: cocoa-yolo-inference
+          property: host

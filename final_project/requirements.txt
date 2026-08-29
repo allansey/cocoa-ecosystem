@@ -1,16 +1,20 @@
-# Image recognition server
+# Machine Learning & Computer Vision
 ultralytics>=8.0.0
+torch>=2.0.0
+transformers>=4.35.0
 pillow>=10.0.0
+numpy>=1.24.0
+scipy>=1.10.0
 onnxruntime>=1.16.0
 
-# Both servers
+# Web & Deployment Servers
 flask>=3.0.0
 flask-cors>=4.0.0
+gunicorn>=21.2.0
 requests>=2.31.0
+python-dotenv>=1.0.0
 
-# Voice + AI server
+# Voice & AI Services
 ghana-nlp>=0.1.5
 google-genai>=0.3.0
 pydub>=0.25.1
-python-dotenv>=1.0.0
-# Note: pydub also requires ffmpeg installed on the system (not via pip)

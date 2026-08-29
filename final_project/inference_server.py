@@ -148,5 +148,6 @@ def reset():
 
 
 if __name__ == "__main__":
-    print("Starting YOLOv8 Inference Server on port 5002...")
-    app.run(host="0.0.0.0", port=5002, debug=False)
+    port = int(os.environ.get("PORT", 5002))
+    print(f"Starting YOLOv8 Inference Server on port {port}...")
+    app.run(host="0.0.0.0", port=port, debug=False)

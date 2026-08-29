@@ -483,10 +483,6 @@ def voice():
 
 
 if __name__ == "__main__":
-    if "PUT_YOUR" in GHANA_NLP_API_KEY or "PUT_YOUR" in GEMINI_API_KEY:
-        print("\nWARNING: One or more API keys are not set.")
-        print("  Set GHANA_NLP_API_KEY and GEMINI_API_KEY before running.")
-        print("  Get Khaya key:   https://translation.ghananlp.org")
-        print("  Get Gemini key:  https://aistudio.google.com/app/apikey\n")
-
-    app.run(host="0.0.0.0", port=5001, debug=False)
+    port = int(os.environ.get("PORT", 5001))
+    print(f"Starting Cocoa Voice + AI Advisor on port {port}...")
+    app.run(host="0.0.0.0", port=port, debug=False)
