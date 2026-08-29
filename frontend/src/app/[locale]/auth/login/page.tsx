@@ -53,8 +53,8 @@ export default function LoginPage({ params: { locale } }: { params: { locale: st
       <div className="max-w-4xl w-full bg-white rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden flex flex-col md:flex-row">
         
         {/* Left Side: Branded Visual Showcase (Desktop/Tablet) */}
-        <div className="hidden md:flex md:w-1/2 bg-stone-900 p-8 lg:p-10 text-white flex-col justify-between relative overflow-hidden">
-          <div className="absolute inset-0 opacity-30 pointer-events-none">
+        <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-amber-950 via-amber-900 to-slate-950 p-8 lg:p-10 text-white flex-col justify-between relative overflow-hidden">
+          <div className="absolute inset-0 opacity-45 pointer-events-none">
             <Image 
               src="/images/hero-harvest-pods.jpg" 
               alt="Ghana Cocoa Pods Harvest" 
@@ -62,7 +62,7 @@ export default function LoginPage({ params: { locale } }: { params: { locale: st
               className="object-cover"
               priority
             />
-            <div className="absolute inset-0 bg-stone-950/60" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-amber-950/80 to-transparent" />
           </div>
 
           <div className="relative z-10 space-y-3">
@@ -73,12 +73,12 @@ export default function LoginPage({ params: { locale } }: { params: { locale: st
             <h2 className="text-2xl font-bold tracking-tight leading-snug">
               Empowering Ghana's Cocoa Value Chain
             </h2>
-            <p className="text-xs text-stone-300 font-normal leading-relaxed">
+            <p className="text-xs text-amber-100/80 font-normal leading-relaxed">
               Direct farmer-to-buyer transactions, IoT moisture verification, and instant Ghana Mobile Money escrow settlements.
             </p>
           </div>
 
-          <div className="relative z-10 space-y-2.5 pt-6 border-t border-stone-800 text-xs text-stone-300 font-medium">
+          <div className="relative z-10 space-y-2.5 pt-6 border-t border-white/10 text-xs text-amber-200/90 font-medium">
             <div className="flex items-center gap-2">
               <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
               <span>100% Escrow Protection via MTN & Telecel</span>
@@ -147,7 +147,7 @@ export default function LoginPage({ params: { locale } }: { params: { locale: st
             <button 
               type="submit" 
               disabled={loading}
-              className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-60 active:scale-95"
+              className="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white font-bold py-3 rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-60 active:scale-95"
             >
               {loading ? (
                 <>

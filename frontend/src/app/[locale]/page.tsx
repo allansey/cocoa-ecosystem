@@ -4,9 +4,10 @@ import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import Image from 'next/image';
 import { 
-  ArrowRight, TrendingUp, ShieldCheck, Droplets, 
+  ArrowRight, TrendingUp, Sprout, ShieldCheck, Droplets, 
   Brain, CheckCircle2, MessageSquare, Handshake, Truck, 
-  Award, MapPin
+  Award, Sparkles, Phone, Mail, MapPin, ChevronRight,
+  Globe, Check, Star, Lock, Smartphone
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
@@ -28,21 +29,21 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
   }, []);
 
   return (
-    <div className="flex flex-col items-center w-full bg-stone-50 text-stone-900 overflow-x-hidden">
+    <div className="flex flex-col items-center w-full bg-slate-50/40 text-slate-900 overflow-x-hidden">
       
-      {/* 1. HERO SECTION WITH AUTHENTIC COCOA PHOTOGRAPHY & LIVE MARKET TICKER */}
-      <section className="relative w-full overflow-hidden bg-stone-950 text-white py-16 sm:py-20 lg:py-28 px-4 sm:px-6 lg:px-8">
+      {/* 1. HERO SECTION WITH COCOA IMAGES & LIVE MARKET TICKER */}
+      <section className="relative w-full overflow-hidden bg-gradient-to-b from-amber-950 via-amber-900 to-slate-950 text-white py-16 sm:py-20 lg:py-28 px-4 sm:px-6 lg:px-8">
         
-        {/* Background Authentic Cocoa Photo Overlay */}
-        <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
+        {/* Background Ambient Cocoa Imagery & Dark Vignette */}
+        <div className="absolute inset-0 z-0 opacity-30 pointer-events-none">
           <Image 
             src="/images/hero-harvest-pods.jpg" 
             alt="Ghana Harvested Cocoa Pods" 
             fill 
-            className="object-cover scale-105"
+            className="object-cover scale-105 filter blur-[1px]"
             priority
           />
-          <div className="absolute inset-0 bg-stone-950/80" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-amber-950/90 to-amber-950/70" />
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-10 lg:gap-14">
@@ -54,23 +55,23 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
             <div className="flex items-center justify-center lg:justify-start gap-2.5 text-xs font-bold uppercase tracking-widest text-amber-400">
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
               <span>Ghana Cocoa Commodity Exchange</span>
-              <span className="text-stone-600">•</span>
-              <span className="text-stone-300 font-medium normal-case tracking-normal text-xs">COCOBOD Standards</span>
+              <span className="text-white/30">•</span>
+              <span className="text-amber-200/80 font-semibold normal-case tracking-normal text-xs">COCOBOD Grade Standards</span>
             </div>
 
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.15]">
-              Direct Cocoa Trade with <span className="text-amber-400">Guaranteed Escrow</span>
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.1]">
+              Direct Cocoa Trade with <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-200">Guaranteed Escrow</span>
             </h1>
 
-            <p className="text-sm sm:text-base lg:text-lg text-stone-300 font-normal leading-relaxed">
-              Connect verified Ghanaian cocoa farmers directly with licensed buyers. Backed by real-time IoT moisture sensors, AI crop health verification, and instant Ghana Mobile Money escrow settlements.
+            <p className="text-sm sm:text-base lg:text-lg text-amber-100/90 font-medium leading-relaxed">
+              Connect verified Ghanaian smallholder cocoa farmers directly with licensed buyers. Backed by real-time IoT moisture sensors, AI pod health scans, and instant Ghana Mobile Money escrow settlements.
             </p>
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3.5 pt-2">
               <Link 
                 href={`/${locale}/listings`}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-7 py-3.5 rounded-xl font-bold text-sm shadow-sm transition-all hover:scale-105 active:scale-95"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-7 py-3.5 rounded-xl font-bold text-sm shadow-md transition-all hover:scale-105 active:scale-95"
               >
                 <span>Explore Cocoa Batches</span>
                 <ArrowRight size={16} />
@@ -78,30 +79,30 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
               
               <Link 
                 href={`/${locale}/auth/register?role=FARMER`}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-stone-800 hover:bg-stone-700 text-white border border-stone-700 px-7 py-3.5 rounded-xl font-bold text-sm transition-all hover:border-stone-500 active:scale-95"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 text-white border border-white/20 px-7 py-3.5 rounded-xl font-bold text-sm backdrop-blur-md transition-all hover:border-white/40 active:scale-95"
               >
                 <span>Sell Your Harvest</span>
               </Link>
             </div>
 
-            {/* Trust Proof Items */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-6 pt-3 text-xs text-stone-300 font-medium">
-              <div className="flex items-center gap-2">
+            {/* Trust Badges */}
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-6 pt-3 text-xs text-amber-200/80 font-medium">
+              <div className="flex items-center gap-1.5">
                 <ShieldCheck size={16} className="text-emerald-400 shrink-0" />
                 <span>100% MoMo Escrow Protection</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
                 <span>COCOBOD Quality Verified</span>
               </div>
             </div>
           </div>
 
-          {/* Hero Right: Clean Cocoa Showcase Card (Pods + Dried Beans + Live Price) */}
+          {/* Hero Right: Dual Cocoa Showcase Card (Pods + Dried Beans + Live Price) */}
           <div className="w-full lg:w-[460px] shrink-0 space-y-4">
             
-            {/* Top Cocoa Pods Card */}
-            <div className="relative rounded-2xl overflow-hidden shadow-xl border border-stone-800 bg-stone-900 group">
+            {/* Top Cocoa Pods Visual Card */}
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/15 bg-slate-900 group">
               <div className="h-56 relative">
                 <Image 
                   src="/images/hero-harvest-pods.jpg" 
@@ -109,44 +110,44 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
                   fill 
                   className="object-cover group-hover:scale-105 transition-transform duration-700"
                 />
-                <div className="absolute inset-0 bg-stone-950/40" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
                 
-                <div className="absolute top-3 left-3 bg-stone-950/80 text-white text-[11px] font-semibold px-3 py-1 rounded-lg border border-stone-700 flex items-center gap-1.5">
+                <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[11px] font-semibold px-3 py-1 rounded-lg border border-white/15 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                   <span>Grade A Single Origin</span>
                 </div>
 
-                <div className="absolute top-3 right-3 bg-stone-950/80 text-emerald-300 text-[11px] font-semibold px-3 py-1 rounded-lg border border-stone-700 flex items-center gap-1.5">
+                <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-emerald-300 text-[11px] font-semibold px-3 py-1 rounded-lg border border-white/15 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   <span>Moisture 6.8%</span>
                 </div>
               </div>
 
-              <div className="p-4 bg-stone-900 flex items-center justify-between border-t border-stone-800">
+              <div className="p-4 bg-slate-950/90 backdrop-blur-md flex items-center justify-between border-t border-white/10">
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl overflow-hidden relative shrink-0 border border-stone-700">
+                  <div className="w-11 h-11 rounded-xl overflow-hidden relative shrink-0 border border-white/20">
                     <Image src="/images/hero-hands-beans.jpg" alt="Selected Cocoa Beans" fill className="object-cover" />
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-white">Sun-Dried Fermented Beans</h4>
-                    <p className="text-[11px] text-stone-400 font-medium">Ashanti & Western Regions</p>
+                    <p className="text-[11px] text-amber-200/70 font-medium">Ashanti & Western Regions</p>
                   </div>
                 </div>
 
-                <span className="text-[11px] font-medium text-stone-300 bg-stone-800 border border-stone-700 px-2.5 py-1 rounded-lg">
+                <span className="text-[11px] font-medium text-slate-300 bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg">
                   AI Verified
                 </span>
               </div>
             </div>
 
             {/* Bottom Live Price Widget Card */}
-            <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 shadow-lg text-white">
+            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-5 shadow-xl text-white relative overflow-hidden">
               <div className="flex justify-between items-start mb-3">
                 <div>
-                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest block">Ghana Cocoa Exchange Rate</span>
+                  <span className="text-[10px] font-bold text-amber-300 uppercase tracking-widest block">Ghana Cocoa Exchange Rate</span>
                   <h3 className="text-sm font-bold text-white mt-0.5">COCOBOD Benchmark Price</h3>
                 </div>
-                <span className="text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <span className="text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   LIVE
                 </span>
@@ -156,17 +157,17 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
                 <span className="text-3xl sm:text-4xl font-black text-white tracking-tight">
                   {price ? price.toLocaleString() : '35,000'}
                 </span>
-                <span className="text-sm font-bold text-stone-400">GHS / Tonne</span>
+                <span className="text-sm font-bold text-amber-200">GHS / Tonne</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-3 border-t border-stone-800 text-xs">
-                <div className="bg-stone-950 rounded-xl p-2.5 border border-stone-800">
-                  <span className="text-stone-400 text-[10px] font-bold uppercase block">Per 64kg Bag</span>
+              <div className="grid grid-cols-2 gap-2 pt-3 border-t border-white/10 text-xs">
+                <div className="bg-white/5 rounded-xl p-2.5">
+                  <span className="text-amber-300/80 text-[10px] font-bold uppercase block">Per 64kg Bag</span>
                   <span className="text-sm font-bold text-white">~2,240 GHS</span>
                 </div>
-                <div className="bg-stone-950 rounded-xl p-2.5 border border-stone-800">
-                  <span className="text-stone-400 text-[10px] font-bold uppercase block">Escrow Protected</span>
-                  <span className="text-sm font-bold text-emerald-400">MoMo Verified</span>
+                <div className="bg-white/5 rounded-xl p-2.5">
+                  <span className="text-amber-300/80 text-[10px] font-bold uppercase block">Escrow Protected</span>
+                  <span className="text-sm font-bold text-emerald-300">MoMo Verified</span>
                 </div>
               </div>
             </div>
@@ -179,9 +180,9 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
       {/* 2. THE 4 PILLARS OF COCOALINK */}
       <section className="w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
         <div className="text-center max-w-2xl mx-auto mb-12 space-y-2">
-          <span className="text-xs font-bold text-amber-700 uppercase tracking-widest">Built for Ghana Agriculture</span>
-          <h2 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight">The Modern Cocoa Trading Stack</h2>
-          <p className="text-xs sm:text-sm text-stone-500 font-normal">
+          <span className="text-xs font-black text-amber-700 uppercase tracking-widest">Built for Ghana Agriculture</span>
+          <h2 className="text-2xl sm:text-4xl font-bold text-slate-900 tracking-tight">The Modern Cocoa Trading Stack</h2>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium">
             Everything farmers and agribusiness buyers need to trade safely and profitably.
           </p>
         </div>
@@ -189,45 +190,45 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           
           {/* Pillar 1 */}
-          <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm hover:border-stone-300 transition-all space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-stone-100 text-stone-800 border border-stone-200 flex items-center justify-center font-bold">
-              <ShieldCheck size={20} className="text-emerald-600" />
+          <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all space-y-3 group">
+            <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
+              <ShieldCheck size={22} />
             </div>
-            <h3 className="text-base font-bold text-stone-900">100% Escrow Protection</h3>
-            <p className="text-xs text-stone-600 font-normal leading-relaxed">
+            <h3 className="text-base font-bold text-slate-900">100% Escrow Protection</h3>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
               Funds are held securely via MTN MoMo, Telecel Cash, or Card until the buyer verifies bean quality and weight.
             </p>
           </div>
 
           {/* Pillar 2 */}
-          <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm hover:border-stone-300 transition-all space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-stone-100 text-stone-800 border border-stone-200 flex items-center justify-center font-bold">
-              <Award size={20} className="text-amber-600" />
+          <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all space-y-3 group">
+            <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
+              <Award size={22} />
             </div>
-            <h3 className="text-base font-bold text-stone-900">Digital Quality Passport</h3>
-            <p className="text-xs text-stone-600 font-normal leading-relaxed">
+            <h3 className="text-base font-bold text-slate-900">Digital Quality Passport</h3>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
               Transparent batch certifications including moisture content %, AI health score, and single-origin GPS coordinates.
             </p>
           </div>
 
           {/* Pillar 3 */}
-          <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm hover:border-stone-300 transition-all space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-stone-100 text-stone-800 border border-stone-200 flex items-center justify-center font-bold">
-              <Droplets size={20} className="text-blue-600" />
+          <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all space-y-3 group">
+            <div className="w-11 h-11 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
+              <Droplets size={22} />
             </div>
-            <h3 className="text-base font-bold text-stone-900">Smart Farm IoT</h3>
-            <p className="text-xs text-stone-600 font-normal leading-relaxed">
+            <h3 className="text-base font-bold text-slate-900">Smart Farm IoT</h3>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
               Real-time wireless soil moisture, temperature, and microclimate telemetry to optimize harvest drying.
             </p>
           </div>
 
           {/* Pillar 4 */}
-          <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm hover:border-stone-300 transition-all space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-stone-100 text-stone-800 border border-stone-200 flex items-center justify-center font-bold">
-              <Brain size={20} className="text-stone-700" />
+          <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all space-y-3 group">
+            <div className="w-11 h-11 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
+              <Brain size={22} />
             </div>
-            <h3 className="text-base font-bold text-stone-900">Twi & English AI Voice</h3>
-            <p className="text-xs text-stone-600 font-normal leading-relaxed">
+            <h3 className="text-base font-bold text-slate-900">Twi & English AI Voice</h3>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
               Instant voice and photo diagnosis for black pod disease and pests, tailored for Ghanaian farmers.
             </p>
           </div>
@@ -236,12 +237,12 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
       </section>
 
       {/* 3. STEP BY STEP TRADE FLOW */}
-      <section className="w-full bg-stone-900 text-white py-16 sm:py-24 px-4 sm:px-6 lg:px-8 border-y border-stone-800">
+      <section className="w-full bg-slate-900 text-white py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto space-y-12">
           <div className="text-center max-w-2xl mx-auto space-y-2">
-            <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">Simple & Reliable</span>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">How CocoaLink Works</h2>
-            <p className="text-xs sm:text-sm text-stone-400 font-normal">From farm gate to port warehouse in 4 secure steps.</p>
+            <span className="text-xs font-black text-amber-400 uppercase tracking-widest">Simple & Reliable</span>
+            <h2 className="text-2xl sm:text-4xl font-bold tracking-tight">How CocoaLink Works</h2>
+            <p className="text-xs sm:text-sm text-slate-400 font-medium">From farm gate to port warehouse in 4 secure steps.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -251,10 +252,10 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
               { step: '03', title: 'MoMo Escrow', desc: 'Buyer deposits funds into protected escrow via Mobile Money (*170# / *110#).' },
               { step: '04', title: 'Dispatch & Release', desc: 'Assigned driver delivers cocoa. Funds are released instantly upon weighbridge verification.' }
             ].map((s, idx) => (
-              <div key={idx} className="bg-stone-950 border border-stone-800 rounded-2xl p-6 space-y-3 relative hover:border-stone-700 transition-colors">
-                <span className="text-xl font-bold text-amber-400 font-mono">{s.step}</span>
+              <div key={idx} className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-3 relative hover:border-amber-400/50 transition-colors">
+                <span className="text-2xl font-black text-amber-400/80 font-mono">{s.step}</span>
                 <h3 className="text-base font-bold text-white">{s.title}</h3>
-                <p className="text-xs text-stone-400 font-normal leading-relaxed">{s.desc}</p>
+                <p className="text-xs text-slate-400 font-medium leading-relaxed">{s.desc}</p>
               </div>
             ))}
           </div>
@@ -265,12 +266,12 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
       <section className="w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-10">
           <div>
-            <span className="text-xs font-bold text-amber-700 uppercase tracking-widest">Marketplace Intelligence</span>
-            <h2 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight mt-1">Latest Industry Updates</h2>
+            <span className="text-xs font-black text-amber-700 uppercase tracking-widest">Marketplace Intelligence</span>
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight mt-1">Latest Industry Updates</h2>
           </div>
           <Link 
             href={`/${locale}/news`}
-            className="text-xs font-bold text-stone-800 hover:text-stone-950 flex items-center gap-1 bg-stone-100 hover:bg-stone-200 px-3.5 py-2 rounded-xl border border-stone-200 transition-colors"
+            className="text-xs font-bold text-amber-800 hover:text-amber-950 flex items-center gap-1 bg-amber-50 px-3.5 py-2 rounded-xl border border-amber-200/80 transition-colors"
           >
             <span>View All Reports</span>
             <ArrowRight size={14} />
@@ -298,22 +299,22 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
               img: '/images/hero-hands-beans.jpg'
             }
           ].map((news, idx) => (
-            <Link key={idx} href={`/${locale}/news`} className="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all group flex flex-col justify-between">
+            <Link key={idx} href={`/${locale}/news`} className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
               <div>
-                <div className="h-44 relative overflow-hidden bg-stone-100">
+                <div className="h-44 relative overflow-hidden bg-slate-100">
                   <Image 
                     src={news.img} 
                     alt={news.title} 
                     fill 
                     className="object-cover group-hover:scale-105 transition-transform duration-500"
                   />
-                  <div className="absolute top-3 left-3 bg-stone-900/90 text-white px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider">
+                  <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm px-2.5 py-0.5 rounded-full text-[10px] font-bold text-slate-800 uppercase tracking-wider shadow-xs">
                     {news.category}
                   </div>
                 </div>
                 <div className="p-5">
-                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block mb-1">{news.date}</span>
-                  <h3 className="text-sm font-bold text-stone-900 group-hover:text-amber-700 transition-colors leading-snug">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">{news.date}</span>
+                  <h3 className="text-sm font-bold text-slate-900 group-hover:text-amber-700 transition-colors leading-snug">
                     {news.title}
                   </h3>
                 </div>
@@ -325,24 +326,26 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
 
       {/* 5. CALL TO ACTION BANNER */}
       <section className="w-full max-w-7xl px-4 sm:px-6 lg:px-8 mb-16">
-        <div className="bg-stone-900 text-white rounded-3xl p-8 sm:p-12 lg:p-16 text-center space-y-6 border border-stone-800 shadow-xl">
-          <div className="max-w-2xl mx-auto space-y-3">
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Ready to Trade with Confidence?</h2>
-            <p className="text-xs sm:text-sm text-stone-300 font-normal">
+        <div className="bg-gradient-to-br from-amber-700 via-amber-800 to-amber-950 text-white rounded-3xl p-8 sm:p-12 lg:p-16 text-center space-y-6 relative overflow-hidden shadow-xl">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="max-w-2xl mx-auto space-y-3 relative z-10">
+            <h2 className="text-2xl sm:text-4xl font-bold tracking-tight">Ready to Trade with Confidence?</h2>
+            <p className="text-xs sm:text-sm text-amber-100/90 font-medium">
               Join thousands of licensed Ghanaian farmers and verified commodity buyers on CocoaLink today.
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row justify-center items-center gap-3.5 pt-2">
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-3.5 relative z-10 pt-2">
             <Link 
               href={`/${locale}/auth/register?role=FARMER`}
-              className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white px-7 py-3.5 rounded-xl font-bold text-sm shadow-sm transition-all hover:scale-105 active:scale-95"
+              className="w-full sm:w-auto bg-white text-slate-900 hover:bg-amber-50 px-7 py-3.5 rounded-xl font-bold text-sm shadow-md transition-all hover:scale-105 active:scale-95"
             >
               Join as a Farmer
             </Link>
             <Link 
               href={`/${locale}/auth/register?role=BUYER`}
-              className="w-full sm:w-auto bg-stone-800 hover:bg-stone-700 text-white border border-stone-700 px-7 py-3.5 rounded-xl font-bold text-sm shadow-sm transition-all hover:border-stone-500 active:scale-95"
+              className="w-full sm:w-auto bg-amber-600 hover:bg-amber-500 text-white border border-amber-400/40 px-7 py-3.5 rounded-xl font-bold text-sm shadow-md transition-all hover:scale-105 active:scale-95"
             >
               Join as a Buyer
             </Link>
@@ -351,7 +354,7 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
       </section>
 
       {/* 6. ENTERPRISE FOOTER */}
-      <footer className="w-full bg-stone-950 text-stone-400 border-t border-stone-800 py-12 sm:py-16 px-4 sm:px-6 lg:px-8">
+      <footer className="w-full bg-slate-950 text-slate-400 border-t border-slate-800 py-12 sm:py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-12 mb-12">
           
           {/* Brand & About */}
@@ -360,12 +363,12 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
               <div className="w-8 h-8 rounded-xl bg-amber-600 text-white font-black flex items-center justify-center text-base">
                 C
               </div>
-              <span className="text-lg font-bold text-white tracking-tight">CocoaLink Ghana</span>
+              <span className="text-lg font-black text-white tracking-tight">CocoaLink Ghana</span>
             </div>
-            <p className="text-xs text-stone-400 font-normal max-w-sm leading-relaxed">
-              Ghana's agricultural fintech and cocoa trade exchange platform. Connecting licensed cocoa farmers, agribusiness aggregators, and certified haulage drivers with escrow payment protection.
+            <p className="text-xs text-slate-400 font-medium max-w-sm leading-relaxed">
+              Ghana's premier agricultural fintech and cocoa trade exchange platform. Connecting licensed cocoa farmers, agribusiness aggregators, and certified haulage drivers with escrow payment protection.
             </p>
-            <div className="flex items-center gap-2 text-[11px] text-emerald-400 font-medium bg-stone-900 border border-stone-800 px-3 py-1.5 rounded-xl w-max">
+            <div className="flex items-center gap-2 text-[11px] text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/60 px-3 py-1.5 rounded-xl w-max">
               <ShieldCheck size={14} />
               <span>COCOBOD Quality Standards Compliant</span>
             </div>
@@ -387,18 +390,18 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
           <div className="space-y-3">
             <h4 className="text-xs font-bold text-white uppercase tracking-wider">Security & Escrow</h4>
             <ul className="space-y-2 text-xs">
-              <li><span className="text-stone-400">MTN Mobile Money (*170#)</span></li>
-              <li><span className="text-stone-400">Telecel Cash (*110#)</span></li>
-              <li><span className="text-stone-400">AT Money Integration</span></li>
-              <li><span className="text-stone-400">Weighbridge Validation</span></li>
-              <li><span className="text-stone-400">GPS Transport Verification</span></li>
+              <li><span className="text-slate-400">MTN Mobile Money (*170#)</span></li>
+              <li><span className="text-slate-400">Telecel Cash (*110#)</span></li>
+              <li><span className="text-slate-400">AT Money Integration</span></li>
+              <li><span className="text-slate-400">Weighbridge Validation</span></li>
+              <li><span className="text-slate-400">GPS Transport Verification</span></li>
             </ul>
           </div>
 
           {/* Regional Hubs */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold text-white uppercase tracking-wider">Ghana Offices</h4>
-            <ul className="space-y-2 text-xs text-stone-400">
+            <ul className="space-y-2 text-xs text-slate-400">
               <li className="flex items-start gap-1.5">
                 <MapPin size={13} className="text-amber-500 shrink-0 mt-0.5" />
                 <span>Kumasi Cocoa House, Ashanti</span>
@@ -417,7 +420,7 @@ export default function HomePage({ params: { locale } }: { params: { locale: str
         </div>
 
         {/* Bottom Bar */}
-        <div className="max-w-7xl mx-auto pt-8 border-t border-stone-800 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-stone-500 font-medium">
+        <div className="max-w-7xl mx-auto pt-8 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-slate-500 font-medium">
           <p>© 2026 CocoaLink Ghana. All rights reserved.</p>
           <div className="flex items-center gap-4">
             <span>Terms of Service</span>
