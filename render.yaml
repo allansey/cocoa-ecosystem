@@ -4,7 +4,7 @@ services:
     name: cocoa-backend
     env: node
     rootDir: backend
-    buildCommand: npm install && npx prisma generate
+    buildCommand: npm install && npx prisma generate && npx prisma db push --accept-data-loss && node scripts/seed.js
     startCommand: node index.js
     healthCheckPath: /api/health
     envVars:

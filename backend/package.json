@@ -5,7 +5,9 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node index.js",
+    "build": "npx prisma generate && npx prisma db push --accept-data-loss && node scripts/seed.js",
     "generate": "prisma generate",
+    "db:push": "prisma db push --accept-data-loss",
     "seed": "node scripts/seed.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
