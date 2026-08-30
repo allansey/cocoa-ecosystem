@@ -188,26 +188,17 @@ def upload():
     if not file.filename:
         return jsonify({"error": "No file selected"}), 400
 
-    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_img:
-        file.save(temp_img.name)
-        temp_path = temp_img.name
-
     try:
-        detection = perform_yolo_inference(temp_path)
+        img = Image.open(file.stream).convert("RGB")
+        detection = perform_yolo_inference(img)
         return jsonify({
             "success": True,
             "message": f"YOLOv8 analysis complete: {detection['status']}",
             "detection": detection
         })
     except Exception as e:
-        print(f"[YOLO] Error: {e}")
+        print(f"[YOLO] Upload error: {e}", flush=True)
         return jsonify({"error": f"Model inference failed: {str(e)}"}), 500
-    finally:
-        if os.path.exists(temp_path):
-            try:
-                os.unlink(temp_path)
-            except OSError:
-                pass
 
 
 @app.route("/scan-stream", methods=["GET", "POST"])
