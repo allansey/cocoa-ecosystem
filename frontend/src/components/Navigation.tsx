@@ -76,7 +76,7 @@ export default function Navigation({ locale }: { locale: string }) {
             Marketplace
           </Link>
 
-          {user?.role !== 'BUYER' && (
+          {_hasHydrated && isAuthenticated && user?.role === 'FARMER' && (
             <Link 
               href={`/${locale}/dashboard/iot`} 
               className={`whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs lg:text-sm font-bold transition-all ${
@@ -280,7 +280,7 @@ export default function Navigation({ locale }: { locale: string }) {
               Marketplace
             </Link>
 
-            {user?.role !== 'BUYER' && (
+            {_hasHydrated && isAuthenticated && user?.role === 'FARMER' && (
               <Link 
                 href={`/${locale}/dashboard/iot`} 
                 className={`p-3 rounded-xl font-bold flex items-center gap-3 transition-colors ${

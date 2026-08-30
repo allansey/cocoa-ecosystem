@@ -234,36 +234,38 @@ export default function DashboardPage({ params: { locale } }: { params: { locale
               </Link>
 
               {/* Smart Farm IoT */}
-              <Link 
-                href={`/${locale}/dashboard/iot`} 
-                className="bg-white border border-slate-200 hover:border-amber-300 p-4 sm:p-5 rounded-2xl flex flex-col gap-3 transition-all hover:shadow-sm hover:-translate-y-0.5 group"
-              >
-                <div className="flex items-center justify-between w-full">
-                  <h3 className="text-sm font-bold text-slate-800">Smart Farm IoT</h3>
-                  <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full uppercase tracking-wider">Live</span>
-                </div>
-                
-                <div className="grid grid-cols-3 gap-2 w-full">
-                  <div className="bg-blue-50/60 rounded-xl p-2 flex flex-col items-center justify-center border border-blue-100">
-                    <Droplets size={14} className="text-blue-500 mb-0.5" />
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">Moisture</span>
-                    <span className="text-xs font-bold text-slate-800">{iotData?.soilMoisture || '--'}%</span>
+              {user?.role === 'FARMER' && (
+                <Link 
+                  href={`/${locale}/dashboard/iot`} 
+                  className="bg-white border border-slate-200 hover:border-amber-300 p-4 sm:p-5 rounded-2xl flex flex-col gap-3 transition-all hover:shadow-sm hover:-translate-y-0.5 group"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <h3 className="text-sm font-bold text-slate-800">Smart Farm IoT</h3>
+                    <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full uppercase tracking-wider">Live</span>
                   </div>
-                  <div className="bg-orange-50/60 rounded-xl p-2 flex flex-col items-center justify-center border border-orange-100">
-                    <Thermometer size={14} className="text-orange-500 mb-0.5" />
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">Temp</span>
-                    <span className="text-xs font-bold text-slate-800">{iotData?.temperature || '--'}°C</span>
+                  
+                  <div className="grid grid-cols-3 gap-2 w-full">
+                    <div className="bg-blue-50/60 rounded-xl p-2 flex flex-col items-center justify-center border border-blue-100">
+                      <Droplets size={14} className="text-blue-500 mb-0.5" />
+                      <span className="text-[10px] text-slate-400 font-bold uppercase">Moisture</span>
+                      <span className="text-xs font-bold text-slate-800">{iotData?.soilMoisture || '--'}%</span>
+                    </div>
+                    <div className="bg-orange-50/60 rounded-xl p-2 flex flex-col items-center justify-center border border-orange-100">
+                      <Thermometer size={14} className="text-orange-500 mb-0.5" />
+                      <span className="text-[10px] text-slate-400 font-bold uppercase">Temp</span>
+                      <span className="text-xs font-bold text-slate-800">{iotData?.temperature || '--'}°C</span>
+                    </div>
+                    <div className="bg-indigo-50/60 rounded-xl p-2 flex flex-col items-center justify-center border border-indigo-100">
+                      <Wind size={14} className="text-indigo-500 mb-0.5" />
+                      <span className="text-[10px] text-slate-400 font-bold uppercase">Humidity</span>
+                      <span className="text-xs font-bold text-slate-800">{iotData?.humidity || '--'}%</span>
+                    </div>
                   </div>
-                  <div className="bg-indigo-50/60 rounded-xl p-2 flex flex-col items-center justify-center border border-indigo-100">
-                    <Wind size={14} className="text-indigo-500 mb-0.5" />
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">Humidity</span>
-                    <span className="text-xs font-bold text-slate-800">{iotData?.humidity || '--'}%</span>
+                  <div className="text-right text-[11px] font-bold text-amber-700 group-hover:text-amber-800">
+                    View Full History &rarr;
                   </div>
-                </div>
-                <div className="text-right text-[11px] font-bold text-amber-700 group-hover:text-amber-800">
-                  View Full History &rarr;
-                </div>
-              </Link>
+                </Link>
+              )}
               
               {/* Create Listing */}
               <Link 
