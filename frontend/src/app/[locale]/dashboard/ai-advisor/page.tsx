@@ -53,7 +53,7 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
   const [isEditingStream, setIsEditingStream] = useState(false);
   const [streamConnected, setStreamConnected] = useState<boolean | null>(null);
   const [isAutoScanning, setIsAutoScanning] = useState(false);
-  const [streamDisplayMode, setStreamDisplayMode] = useState<'direct' | 'iframe' | 'proxy'>('iframe');
+  const [streamDisplayMode, setStreamDisplayMode] = useState<'direct' | 'iframe' | 'proxy'>('direct');
 
   // File Upload
   const [image, setImage] = useState<string | null>(null);
@@ -192,27 +192,35 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
 
   const [cameraError, setCameraError] = useState<string | null>(null);
 
-  // Helper to grab frame directly from browser image to avoid ESP32-CAM socket locks
+  // Helper to grab frame directly from browser image or browser /capture endpoint
   const captureClientSideFrame = async (): Promise<Blob | null> => {
-    return new Promise((resolve) => {
-      try {
-        const img = document.getElementById('cam-stream-img') as HTMLImageElement;
-        if (!img || !img.complete || !img.naturalWidth) {
-          return resolve(null);
-        }
+    // 1. Try canvas draw from visible image element
+    try {
+      const img = document.getElementById('cam-stream-img') as HTMLImageElement;
+      if (img && img.complete && img.naturalWidth > 0) {
         const canvas = document.createElement('canvas');
         canvas.width = img.naturalWidth;
         canvas.height = img.naturalHeight;
         const ctx = canvas.getContext('2d');
-        if (!ctx) return resolve(null);
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob((blob) => {
-          resolve(blob);
-        }, 'image/jpeg', 0.9);
-      } catch {
-        resolve(null);
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/jpeg', 0.9));
+          if (blob && blob.size > 1000) return blob;
+        }
       }
-    });
+    } catch {}
+
+    // 2. Try direct single-frame /capture endpoint from browser
+    try {
+      const captureUrl = streamUrl.replace(':81/stream', '/capture').replace('/stream', '/capture');
+      const res = await fetch(captureUrl, { cache: 'no-store', signal: AbortSignal.timeout(2000) });
+      if (res.ok) {
+        const blob = await res.blob();
+        if (blob && blob.size > 1000) return blob;
+      }
+    } catch {}
+
+    return null;
   };
 
   // 1. Scan from ESP32-CAM Stream (Client capture + Server fallback)
