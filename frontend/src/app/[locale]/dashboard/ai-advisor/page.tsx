@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Camera, Upload, Loader2, ArrowLeft, Brain, Volume2, ShieldCheck, 
   AlertCircle, Mic, Square, CheckCircle, Circle, Bell, Video, RefreshCw, 
-  Settings, Play, Pause, Radio, Zap
+  Settings, Play, Pause, Radio, Scan, Info, Headphones, Sparkles, Activity
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -486,32 +486,32 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
 
       {/* Main Header */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/80 pb-6">
-        <div className="flex items-center gap-5">
-          <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-amber-700 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/20">
-            <Brain size={34} />
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 bg-amber-600 text-white rounded-2xl flex items-center justify-center shadow-md shadow-amber-600/10">
+            <Brain size={28} />
           </div>
           <div>
-            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">AI Cocoa Disease Advisor</h1>
-            <p className="text-slate-500 font-medium text-sm sm:text-base">
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">AI Cocoa Disease Advisor</h1>
+            <p className="text-slate-500 font-medium text-xs sm:text-sm">
               Real-time YOLOv8 vision detection + Gemini AI + spoken Twi voice notes.
             </p>
           </div>
         </div>
 
         {/* Input Mode Switcher */}
-        <div className="flex items-center bg-slate-100 p-1.5 rounded-2xl border border-slate-200 w-fit">
+        <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 w-fit">
           <button
             onClick={() => setInputMode('stream')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${inputMode === 'stream' ? 'bg-white text-stone-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${inputMode === 'stream' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
           >
-            <Video size={16} className={inputMode === 'stream' ? 'text-amber-600' : ''} />
+            <Video size={15} className={inputMode === 'stream' ? 'text-amber-700' : ''} />
             <span>ESP32-CAM Live</span>
           </button>
           <button
             onClick={() => setInputMode('upload')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${inputMode === 'upload' ? 'bg-white text-stone-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${inputMode === 'upload' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
           >
-            <Upload size={16} className={inputMode === 'upload' ? 'text-indigo-600' : ''} />
+            <Upload size={15} className={inputMode === 'upload' ? 'text-amber-700' : ''} />
             <span>Upload Photo</span>
           </button>
         </div>
@@ -609,8 +609,9 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
               )}
 
               {/* Single Connection Tip */}
-              <div className="px-5 py-2 bg-amber-500/10 border-b border-amber-500/20 text-[11px] text-amber-800 flex items-center justify-between">
-                <span>💡 <strong>Tip:</strong> Close any other browser tabs viewing <code className="font-mono">{streamUrl}</code> so the camera can stream here without socket locks.</span>
+              <div className="px-5 py-2.5 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-900 flex items-center gap-2">
+                <Info size={15} className="text-amber-700 shrink-0" />
+                <span><strong>Note:</strong> Close any other browser tabs viewing <code className="font-mono bg-amber-100/80 px-1 py-0.5 rounded text-[11px]">{streamUrl}</code> for uninterrupted streaming.</span>
               </div>
 
               {/* Camera Connection Alert Banner */}
@@ -620,7 +621,7 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
                   <div className="flex-grow space-y-1">
                     <p className="font-bold">Cannot reach camera at <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[11px]">{streamUrl}</code></p>
                     <p className="text-amber-700 text-[11px]">
-                      Ensure your ESP32-CAM is powered on and connected to the same Wi-Fi network. Click the ⚙️ button above if your camera IP has changed.
+                      Ensure your ESP32-CAM is powered on and connected to the same Wi-Fi network. Click the <Settings size={12} className="inline text-slate-600" /> button above if your camera IP has changed.
                     </p>
                   </div>
                   <button onClick={() => setCameraError(null)} className="text-amber-500 hover:text-amber-800 font-bold text-sm">×</button>
@@ -659,16 +660,17 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
 
                 {/* Overlaid Live Tag */}
                 <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/20 flex items-center gap-2">
-                  <Radio size={12} className="text-red-500 animate-pulse" />
+                  <Radio size={12} className="text-emerald-400 animate-pulse" />
                   <span className="text-[11px] font-mono font-bold text-white tracking-widest uppercase">Live 1080p Stream</span>
                 </div>
 
                 {/* Overlay Scanning Effect */}
                 {pipelineLoading && (
-                  <div className="absolute inset-0 bg-indigo-950/40 backdrop-blur-[2px] flex flex-col items-center justify-center gap-3">
-                    <div className="w-14 h-14 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-white font-black text-sm tracking-wide bg-stone-900/80 px-4 py-1.5 rounded-full border border-amber-500/40">
-                      ⚡ Analyzing Live Frame...
+                  <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs flex flex-col items-center justify-center gap-3">
+                    <div className="w-12 h-12 border-3 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-white font-bold text-xs tracking-wide bg-slate-900/90 px-3.5 py-1.5 rounded-full border border-amber-500/30 flex items-center gap-2">
+                      <Sparkles size={14} className="text-amber-400 animate-pulse" />
+                      <span>Analyzing Live Frame...</span>
                     </p>
                   </div>
                 )}
@@ -683,9 +685,9 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
                 <button
                   onClick={() => scanStreamFrame(false)}
                   disabled={pipelineLoading}
-                  className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-black rounded-2xl shadow-lg shadow-amber-600/20 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer"
+                  className="w-full sm:w-auto px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-md transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
-                  {pipelineLoading ? <Loader2 className="animate-spin" size={18} /> : <Zap size={18} className="fill-current text-amber-200" />}
+                  {pipelineLoading ? <Loader2 className="animate-spin" size={16} /> : <Scan size={16} className="text-white" />}
                   <span>Scan Current Frame</span>
                 </button>
               </div>
@@ -718,9 +720,9 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
               <button 
                 onClick={runImagePipeline}
                 disabled={!image || pipelineLoading}
-                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-black py-4 rounded-2xl shadow-xl shadow-amber-600/20 transition-all hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 cursor-pointer"
+                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3.5 rounded-xl shadow-md transition-all hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer"
               >
-                {pipelineLoading ? <Loader2 className="animate-spin" /> : <ShieldCheck size={20} />}
+                {pipelineLoading ? <Loader2 className="animate-spin" size={18} /> : <ShieldCheck size={18} />}
                 <span>{pipelineLoading ? 'Analyzing...' : 'Run Diagnosis'}</span>
               </button>
             </div>
@@ -739,9 +741,9 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
             <button 
               onClick={toggleRecording}
               disabled={pipelineLoading && !isRecording}
-              className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg transition-all shrink-0 cursor-pointer ${isRecording ? 'bg-red-500 hover:bg-red-600 animate-pulse' : 'bg-gradient-to-br from-amber-500 to-amber-700 hover:from-amber-600 hover:to-amber-800 text-white active:scale-95'}`}
+              className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-md transition-all shrink-0 cursor-pointer ${isRecording ? 'bg-rose-600 hover:bg-rose-700 animate-pulse' : 'bg-amber-600 hover:bg-amber-700 text-white active:scale-95'}`}
             >
-              {isRecording ? <Square size={24} className="text-white fill-current" /> : <Mic size={28} className="text-white" />}
+              {isRecording ? <Square size={20} className="text-white fill-current" /> : <Mic size={24} className="text-white" />}
             </button>
           </div>
 
@@ -821,17 +823,27 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
 
               {/* Spoken Twi Voice Note Player (Prominent) */}
               {results.audioBase64 && (
-                <div className="bg-stone-900 border-2 border-amber-500/50 rounded-2xl p-4 shadow-xl flex flex-col gap-3">
+                <div className="bg-slate-900 border border-amber-500/40 rounded-2xl p-4 shadow-lg flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${isPlayingAudio ? 'bg-amber-500 text-stone-950 animate-pulse' : 'bg-stone-800 text-amber-400 border border-stone-700'}`}>
-                        <Volume2 size={20} className={isPlayingAudio ? 'animate-bounce' : ''} />
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${isPlayingAudio ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-amber-400 border border-slate-700'}`}>
+                        <Volume2 size={18} className={isPlayingAudio ? 'animate-pulse' : ''} />
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-white uppercase tracking-wider">Twi Spoken Audio Advisory</h4>
-                        <p className="text-[11px] text-amber-400 font-medium">
-                          {isPlayingAudio ? "🔊 Playing spoken Twi note..." : "🎧 Meta MMS-TTS Ready"}
-                        </p>
+                        <h4 className="text-xs font-bold text-white uppercase tracking-wider">Twi Audio Advisory</h4>
+                        <div className="text-[11px] text-amber-400 font-medium flex items-center gap-1.5 mt-0.5">
+                          {isPlayingAudio ? (
+                            <>
+                              <Volume2 size={13} className="text-amber-400 animate-pulse shrink-0" />
+                              <span>Playing spoken Twi note...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Headphones size={13} className="text-amber-400 shrink-0" />
+                              <span>Meta MMS-TTS Audio Ready</span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -845,17 +857,17 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
                           playAudioData(results.audioBase64, results.audioMime || 'audio/wav');
                         }
                       }}
-                      className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-4 py-2 rounded-xl text-xs shadow-md transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                      className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3.5 py-1.5 rounded-lg text-xs shadow-sm transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5 cursor-pointer"
                     >
                       {isPlayingAudio ? (
                         <>
-                          <Pause size={14} className="fill-current" />
+                          <Pause size={13} className="fill-current" />
                           <span>Pause</span>
                         </>
                       ) : (
                         <>
-                          <Play size={14} className="fill-current" />
-                          <span>Listen Again</span>
+                          <Play size={13} className="fill-current" />
+                          <span>Play Voice</span>
                         </>
                       )}
                     </button>

@@ -311,8 +311,8 @@ export default function Navigation({ locale }: { locale: string }) {
                     isActive(`/${locale}/orders`) ? 'bg-amber-100 text-amber-900' : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  <Truck size={18} className="text-amber-600" />
-                  🚚 My Orders & Tracking
+                  <Truck size={18} className="text-amber-700 shrink-0" />
+                  <span>My Orders & Tracking</span>
                 </Link>
 
                 <Link 

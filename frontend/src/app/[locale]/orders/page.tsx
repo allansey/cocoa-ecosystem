@@ -254,8 +254,9 @@ export default function OrdersHubPage({ params }: { params: { locale: string } }
                         </span>
                       </p>
                       {order.transporterName ? (
-                        <p className="text-slate-600 font-medium mt-1">
-                          🚚 Driver: <span className="font-bold text-slate-800">{order.transporterName}</span> ({order.vehicleNumber || 'Truck'})
+                        <p className="text-slate-600 font-medium mt-1 flex items-center gap-1.5">
+                          <Truck size={14} className="text-slate-500 shrink-0" />
+                          <span>Driver: <strong className="text-slate-800">{order.transporterName}</strong> ({order.vehicleNumber || 'Truck'})</span>
                         </p>
                       ) : (
                         <p className="text-slate-400 font-medium mt-1">Driver assignment pending...</p>
