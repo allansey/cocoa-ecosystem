@@ -111,37 +111,33 @@ def perform_yolo_inference(image_input):
 
 def grab_frame_from_camera(stream_url=None):
     """Grab a single frame from the ESP32-CAM stream or capture endpoint."""
-    url = stream_url or CAMERA_STREAM_URL
-    print(f"[YOLO] Grabbing snapshot frame from ESP32-CAM at: {url} ...")
+    url = (stream_url or CAMERA_STREAM_URL).strip()
+    print(f"[YOLO] Attempting to grab snapshot from ESP32-CAM at: {url} ...", flush=True)
 
-    # 1. Try direct capture URL (e.g., /capture on port 80/81)
-    capture_urls = [
-        url.replace(":81/stream", "/capture").replace("/stream", "/capture"),
-        url.replace(":81/stream", ":80/capture"),
-        url
-    ]
-
-    for c_url in capture_urls:
-        try:
-            r = requests.get(c_url, timeout=3)
-            if r.status_code == 200 and len(r.content) > 1000:
-                return Image.open(io.BytesIO(r.content))
-        except Exception:
-            continue
-
-    # 2. Extract single frame from MJPEG stream
+    # 1. Try dedicated single-frame capture endpoint first (/capture)
+    capture_url = url.replace(":81/stream", "/capture").replace("/stream", "/capture")
     try:
-        r = requests.get(url, stream=True, timeout=6)
+        r = requests.get(capture_url, timeout=2)
+        if r.status_code == 200 and len(r.content) > 1000:
+            return Image.open(io.BytesIO(r.content))
+    except Exception:
+        pass
+
+    # 2. Extract from MJPEG Stream (with 3s timeout)
+    try:
+        r = requests.get(url, stream=True, timeout=3)
         bytes_buf = b""
-        for chunk in r.iter_content(chunk_size=1024):
+        for chunk in r.iter_content(chunk_size=2048):
             bytes_buf += chunk
-            start = bytes_buf.find(b"\xff\xd8")  # JPEG start
-            end = bytes_buf.find(b"\xff\xd9")    # JPEG end
+            start = bytes_buf.find(b"\xff\xd8")  # JPEG SOI
+            end = bytes_buf.find(b"\xff\xd9")    # JPEG EOI
             if start != -1 and end != -1 and end > start:
                 jpg_data = bytes_buf[start:end + 2]
                 return Image.open(io.BytesIO(jpg_data))
+            if len(bytes_buf) > 1000000:
+                break
     except Exception as e:
-        print(f"[YOLO] Failed to extract frame from stream {url}: {e}")
+        print(f"[YOLO] Notice: Stream grab on {url} encountered: {e}", flush=True)
 
     return None
 
@@ -217,18 +213,18 @@ def upload():
 @app.route("/scan-stream", methods=["GET", "POST"])
 def scan_stream():
     """Grab a live frame from the ESP32-CAM stream and run YOLO."""
-    json_data = request.get_json(silent=True) or {}
-    stream_url = request.args.get("url") or json_data.get("url") or request.form.get("url") or CAMERA_STREAM_URL
-    frame = grab_frame_from_camera(stream_url)
-
-    if frame is None:
-        return jsonify({
-            "error": "Could not connect or fetch frame from ESP32-CAM stream.",
-            "stream_url": stream_url,
-            "suggestion": "Ensure ESP32-CAM is powered on and connected to the same Wi-Fi network (192.168.137.226)."
-        }), 502
-
     try:
+        json_data = request.get_json(silent=True) or {}
+        stream_url = request.args.get("url") or json_data.get("url") or request.form.get("url") or CAMERA_STREAM_URL
+        frame = grab_frame_from_camera(stream_url)
+
+        if frame is None:
+            return jsonify({
+                "error": "Could not connect or fetch frame from ESP32-CAM stream.",
+                "stream_url": stream_url,
+                "suggestion": "Ensure ESP32-CAM is powered on and connected to the same Wi-Fi network (192.168.137.164)."
+            }), 502
+
         detection = perform_yolo_inference(frame)
         return jsonify({
             "success": True,
@@ -237,7 +233,7 @@ def scan_stream():
             "detection": detection
         })
     except Exception as e:
-        print(f"[YOLO] Stream scan error: {e}")
+        print(f"[YOLO] Stream scan error: {e}", flush=True)
         return jsonify({"error": f"Inference on live frame failed: {str(e)}"}), 500
 
 

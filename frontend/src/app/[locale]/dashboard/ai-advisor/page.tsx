@@ -192,12 +192,37 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
 
   const [cameraError, setCameraError] = useState<string | null>(null);
 
-  // 1. Scan from ESP32-CAM Stream
-  const scanStreamFrame = async () => {
-    setPipelineLoading(true);
-    setResults(null);
+  // Helper to grab frame directly from browser image to avoid ESP32-CAM socket locks
+  const captureClientSideFrame = async (): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      try {
+        const img = document.getElementById('cam-stream-img') as HTMLImageElement;
+        if (!img || !img.complete || !img.naturalWidth) {
+          return resolve(null);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve(null);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          resolve(blob);
+        }, 'image/jpeg', 0.9);
+      } catch {
+        resolve(null);
+      }
+    });
+  };
+
+  // 1. Scan from ESP32-CAM Stream (Client capture + Server fallback)
+  const scanStreamFrame = async (isBackground = false) => {
+    if (!isBackground) {
+      setPipelineLoading(true);
+      setResults(null);
+      setCameraError(null);
+    }
     setSseAlert(null);
-    setCameraError(null);
 
     const steps: PipelineStep[] = [
       { id: 's1', name: 'Capturing ESP32-CAM Frame (YOLOv8)', status: 'active' },
@@ -205,32 +230,55 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
       { id: 's3', name: 'Khaya NLP English → Twi Translation', status: 'idle' },
       { id: 's4', name: 'Meta MMS-TTS Voice Synthesis (Akan)', status: 'idle' },
     ];
-    setPipelineSteps(steps);
-    setCurrentStepText(`Fetching live frame from ${streamUrl}...`);
+    if (!isBackground) {
+      setPipelineSteps(steps);
+      setCurrentStepText(`Analyzing live frame from ${streamUrl}...`);
+    }
 
     try {
-      const res = await fetch(`${IMAGE_SERVER}/scan-stream?url=${encodeURIComponent(streamUrl)}`, {
-        method: 'POST'
-      });
+      // Step A: Attempt instant frame capture from browser canvas
+      const frameBlob = await captureClientSideFrame();
+      let det: any = null;
 
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || `Could not connect to camera stream at ${streamUrl}.`);
+      if (frameBlob) {
+        const formData = new FormData();
+        formData.append('image', frameBlob, 'stream_snapshot.jpg');
+        const uploadRes = await fetch(`${IMAGE_SERVER}/upload`, { method: 'POST', body: formData });
+        if (uploadRes.ok) {
+          const data = await uploadRes.json();
+          det = data.detection;
+        }
       }
 
-      const data = await res.json();
-      const det = data.detection || { status: 'healthy', primary_detection: { confidence: 0.95 } };
-      const status = det.status || 'healthy';
-      const confidence = det.primary_detection?.confidence || 0.95;
+      // Step B: Fallback to server-side scan-stream endpoint if canvas wasn't available
+      if (!det) {
+        const res = await fetch(`${IMAGE_SERVER}/scan-stream?url=${encodeURIComponent(streamUrl)}`, {
+          method: 'POST'
+        });
+
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          throw new Error(errJson.error || `Could not connect to camera stream at ${streamUrl}.`);
+        }
+
+        const data = await res.json();
+        det = data.detection;
+      }
+
+      const safeDet = det || { status: 'healthy', primary_detection: { confidence: 0.95 } };
+      const status = safeDet.status || 'healthy';
+      const confidence = safeDet.primary_detection?.confidence || 0.95;
 
       await executeAdvisoryPipeline(
-        { status, confidence, advice: det.advice },
-        `ESP32-CAM Live Scan (${new Date().toLocaleTimeString()})`
+        { status, confidence, advice: safeDet.advice },
+        `ESP32-CAM Scan (${new Date().toLocaleTimeString()})`
       );
     } catch (err: any) {
-      console.error(err);
-      setPipelineLoading(false);
-      setCameraError(err.message || `Could not connect to ${streamUrl}. Please check if the ESP32-CAM is powered on and connected.`);
+      if (!isBackground) {
+        console.warn("Scan stream notice:", err);
+        setPipelineLoading(false);
+        setCameraError(err.message || `Could not connect to ${streamUrl}. Please check if the ESP32-CAM is powered on.`);
+      }
     }
   };
 
@@ -287,15 +335,13 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
     }
   };
 
-  // Auto-Scan interval management
+  // Auto-Scan interval management (Runs in background)
   useEffect(() => {
     if (isAutoScanning) {
-      scanStreamFrame();
+      scanStreamFrame(true);
       autoScanTimerRef.current = setInterval(() => {
-        if (!pipelineLoading) {
-          scanStreamFrame();
-        }
-      }, 7000);
+        scanStreamFrame(true);
+      }, 5000);
     } else {
       if (autoScanTimerRef.current) {
         clearInterval(autoScanTimerRef.current);
@@ -598,12 +644,16 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
                   />
                 ) : streamDisplayMode === 'proxy' ? (
                   <img 
+                    id="cam-stream-img"
+                    crossOrigin="anonymous"
                     src={`${IMAGE_SERVER}/video_feed?url=${encodeURIComponent(streamUrl)}`}
                     alt="ESP32-CAM Proxy Feed"
                     className="w-full h-full object-contain"
                   />
                 ) : (
                   <img 
+                    id="cam-stream-img"
+                    crossOrigin="anonymous"
                     src={streamUrl}
                     alt="ESP32-CAM Live Feed"
                     className="w-full h-full object-contain"
@@ -635,7 +685,7 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
                 </div>
 
                 <button
-                  onClick={scanStreamFrame}
+                  onClick={() => scanStreamFrame(false)}
                   disabled={pipelineLoading}
                   className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-black rounded-2xl shadow-lg shadow-amber-600/20 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer"
                 >
