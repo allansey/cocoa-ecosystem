@@ -241,16 +241,21 @@ def scan_stream():
 @app.route("/video_feed", methods=["GET"])
 def video_feed():
     """Relay live MJPEG video stream from ESP32-CAM to web browsers."""
-    def _generate():
-        try:
-            resp = requests.get(CAMERA_STREAM_URL, stream=True, timeout=10)
-            for chunk in resp.iter_content(chunk_size=1024):
-                if chunk:
-                    yield chunk
-        except Exception as e:
-            print(f"[YOLO] Video feed stream relay error: {e}")
-
-    return Response(_generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
+    url = request.args.get("url") or CAMERA_STREAM_URL
+    try:
+        req = requests.get(url, stream=True, timeout=6)
+        content_type = req.headers.get("content-type", "multipart/x-mixed-replace; boundary=frame")
+        def _generate():
+            try:
+                for chunk in req.iter_content(chunk_size=4096):
+                    if chunk:
+                        yield chunk
+            except Exception as e:
+                print(f"[YOLO] Stream relay chunk notice: {e}")
+        return Response(_generate(), content_type=content_type)
+    except Exception as e:
+        print(f"[YOLO] Video feed connection error: {e}")
+        return jsonify({"error": f"Cannot connect to ESP32-CAM: {str(e)}"}), 502
 
 
 @app.route("/reset", methods=["POST"])

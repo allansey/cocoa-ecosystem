@@ -53,6 +53,7 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
   const [isEditingStream, setIsEditingStream] = useState(false);
   const [streamConnected, setStreamConnected] = useState<boolean | null>(null);
   const [isAutoScanning, setIsAutoScanning] = useState(false);
+  const [streamDisplayMode, setStreamDisplayMode] = useState<'direct' | 'iframe' | 'proxy'>('iframe');
 
   // File Upload
   const [image, setImage] = useState<string | null>(null);
@@ -501,6 +502,28 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {/* Stream Mode Switcher */}
+                  <div className="hidden sm:flex items-center bg-slate-200/60 p-1 rounded-xl text-[11px] font-bold">
+                    <button
+                      onClick={() => setStreamDisplayMode('direct')}
+                      className={`px-2.5 py-1 rounded-lg transition-all ${streamDisplayMode === 'direct' ? 'bg-white text-stone-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                    >
+                      Direct
+                    </button>
+                    <button
+                      onClick={() => setStreamDisplayMode('iframe')}
+                      className={`px-2.5 py-1 rounded-lg transition-all ${streamDisplayMode === 'iframe' ? 'bg-white text-stone-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                    >
+                      IFrame
+                    </button>
+                    <button
+                      onClick={() => setStreamDisplayMode('proxy')}
+                      className={`px-2.5 py-1 rounded-lg transition-all ${streamDisplayMode === 'proxy' ? 'bg-white text-stone-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                    >
+                      Proxy
+                    </button>
+                  </div>
+
                   <button
                     onClick={() => setIsEditingStream(!isEditingStream)}
                     className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 rounded-xl transition-all"
@@ -525,7 +548,7 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
                     type="text"
                     value={streamUrl}
                     onChange={(e) => setStreamUrl(e.target.value)}
-                    placeholder="http://192.168.137.226:81/stream"
+                    placeholder="http://192.168.137.164:81/stream"
                     className="flex-grow px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 w-full"
                   />
                   <button
@@ -546,6 +569,11 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
                 </div>
               )}
 
+              {/* Single Connection Tip */}
+              <div className="px-5 py-2 bg-amber-500/10 border-b border-amber-500/20 text-[11px] text-amber-800 flex items-center justify-between">
+                <span>💡 <strong>Tip:</strong> Close any other browser tabs viewing <code className="font-mono">{streamUrl}</code> so the camera can stream here without socket locks.</span>
+              </div>
+
               {/* Camera Connection Alert Banner */}
               {cameraError && (
                 <div className="p-4 bg-amber-50 border-b border-amber-200 flex items-start gap-3 text-xs text-amber-900 animate-in fade-in">
@@ -562,18 +590,26 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
 
               {/* Live Video Frame Container */}
               <div className="relative w-full aspect-[4/3] bg-stone-950 flex items-center justify-center overflow-hidden">
-                <img 
-                  src={streamUrl}
-                  alt="ESP32-CAM Live Feed"
-                  className="w-full h-full object-contain"
-                  onError={(e) => {
-                    // If direct stream URL encounters an issue, try backend video_feed relay
-                    const target = e.target as HTMLImageElement;
-                    if (!target.src.includes('/video_feed')) {
-                      target.src = `${IMAGE_SERVER}/video_feed`;
-                    }
-                  }}
-                />
+                {streamDisplayMode === 'iframe' ? (
+                  <iframe 
+                    src={streamUrl}
+                    className="w-full h-full border-0 bg-black"
+                    title="ESP32-CAM Stream"
+                  />
+                ) : streamDisplayMode === 'proxy' ? (
+                  <img 
+                    src={`${IMAGE_SERVER}/video_feed?url=${encodeURIComponent(streamUrl)}`}
+                    alt="ESP32-CAM Proxy Feed"
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <img 
+                    src={streamUrl}
+                    alt="ESP32-CAM Live Feed"
+                    className="w-full h-full object-contain"
+                    onError={() => setStreamDisplayMode('proxy')}
+                  />
+                )}
 
                 {/* Overlaid Live Tag */}
                 <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/20 flex items-center gap-2">
