@@ -23,6 +23,8 @@ function generateBaselineTelemetry(userId) {
     });
   }
   return points;
+}
+
 /**
  * GET /api/iot/realtime
  * Fetch the latest real-time sensor reading (for live dashboard telemetry)
