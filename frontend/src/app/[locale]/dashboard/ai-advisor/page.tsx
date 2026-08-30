@@ -481,27 +481,8 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
         className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors w-fit"
       >
         <ArrowLeft size={16} />
-        <span>Back to Plantation Dashboard</span>
+        <span>Back to Dashboard</span>
       </Link>
-
-      {/* SSE Real-time alert banner */}
-      {sseAlert && (
-        <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-5 shadow-lg animate-in slide-in-from-top-4">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-xl flex items-center justify-center shrink-0">
-              <Bell size={24} />
-            </div>
-            <div className="flex-grow">
-              <h3 className="text-lg font-black text-red-800 mb-1">⚠️ Automated IoT Camera Alert</h3>
-              <p className="text-red-700 font-medium text-sm mb-2">{sseAlert.english_alert}</p>
-              {sseAlert.twi_alert !== sseAlert.english_alert && (
-                <p className="text-red-600 text-xs italic font-medium">{sseAlert.twi_alert}</p>
-              )}
-            </div>
-            <button onClick={() => setSseAlert(null)} className="text-red-400 hover:text-red-600 text-xl font-bold">×</button>
-          </div>
-        </div>
-      )}
 
       {/* Main Header */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/80 pb-6">
