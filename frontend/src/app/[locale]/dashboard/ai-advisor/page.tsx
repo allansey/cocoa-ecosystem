@@ -9,7 +9,7 @@ import Link from 'next/link';
 
 const IMAGE_SERVER = process.env.NEXT_PUBLIC_AI_IMAGE_SERVER_URL || "http://127.0.0.1:5002";
 const VOICE_SERVER = process.env.NEXT_PUBLIC_VOICE_SERVER_URL || "http://127.0.0.1:5001";
-const DEFAULT_CAM_STREAM = "http://192.168.137.226:81/stream";
+const DEFAULT_CAM_STREAM = "http://192.168.137.164:81/stream";
 
 interface Detection {
   status: string;
@@ -529,8 +529,17 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
                     className="flex-grow px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 w-full"
                   />
                   <button
-                    onClick={() => setIsEditingStream(false)}
-                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold whitespace-nowrap"
+                    onClick={async () => {
+                      setIsEditingStream(false);
+                      try {
+                        await fetch(`${IMAGE_SERVER}/camera-config`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ streamUrl })
+                        });
+                      } catch {}
+                    }}
+                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer"
                   >
                     Save URL
                   </button>
@@ -554,14 +563,14 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
               {/* Live Video Frame Container */}
               <div className="relative w-full aspect-[4/3] bg-stone-950 flex items-center justify-center overflow-hidden">
                 <img 
-                  src={`${IMAGE_SERVER}/video_feed`}
+                  src={streamUrl}
                   alt="ESP32-CAM Live Feed"
                   className="w-full h-full object-contain"
                   onError={(e) => {
-                    // Fallback to direct stream URL
+                    // If direct stream URL encounters an issue, try backend video_feed relay
                     const target = e.target as HTMLImageElement;
-                    if (!target.src.includes(streamUrl)) {
-                      target.src = streamUrl;
+                    if (!target.src.includes('/video_feed')) {
+                      target.src = `${IMAGE_SERVER}/video_feed`;
                     }
                   }}
                 />

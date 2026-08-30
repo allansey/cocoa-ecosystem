@@ -32,7 +32,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Default ESP32-CAM stream URL
-CAMERA_STREAM_URL = os.environ.get("CAMERA_STREAM_URL", "http://192.168.137.226:81/stream")
+CAMERA_STREAM_URL = os.environ.get("CAMERA_STREAM_URL", "http://192.168.137.164:81/stream")
 
 # In-memory store for the latest detection
 latest_detection = {
