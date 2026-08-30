@@ -192,34 +192,20 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
 
   const [cameraError, setCameraError] = useState<string | null>(null);
 
-  // Helper to grab frame directly from browser image or browser /capture endpoint
+  // Helper to grab frame cleanly via same-origin Next.js camera-capture API (No CORS issues)
   const captureClientSideFrame = async (): Promise<Blob | null> => {
-    // 1. Try canvas draw from visible image element
     try {
-      const img = document.getElementById('cam-stream-img') as HTMLImageElement;
-      if (img && img.complete && img.naturalWidth > 0) {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/jpeg', 0.9));
-          if (blob && blob.size > 1000) return blob;
-        }
-      }
-    } catch {}
-
-    // 2. Try direct single-frame /capture endpoint from browser
-    try {
-      const captureUrl = streamUrl.replace(':81/stream', '/capture').replace('/stream', '/capture');
-      const res = await fetch(captureUrl, { cache: 'no-store', signal: AbortSignal.timeout(2000) });
+      const res = await fetch(`/api/camera-capture?url=${encodeURIComponent(streamUrl)}`, {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(3000)
+      });
       if (res.ok) {
         const blob = await res.blob();
         if (blob && blob.size > 1000) return blob;
       }
-    } catch {}
-
+    } catch (e) {
+      console.warn("Client camera-capture fetch notice:", e);
+    }
     return null;
   };
 
@@ -653,7 +639,6 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
                 ) : streamDisplayMode === 'proxy' ? (
                   <img 
                     id="cam-stream-img"
-                    crossOrigin="anonymous"
                     src={`${IMAGE_SERVER}/video_feed?url=${encodeURIComponent(streamUrl)}`}
                     alt="ESP32-CAM Proxy Feed"
                     className="w-full h-full object-contain"
@@ -661,7 +646,6 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
                 ) : (
                   <img 
                     id="cam-stream-img"
-                    crossOrigin="anonymous"
                     src={streamUrl}
                     alt="ESP32-CAM Live Feed"
                     className="w-full h-full object-contain"
