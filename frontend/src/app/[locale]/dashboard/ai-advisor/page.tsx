@@ -45,8 +45,8 @@ interface SSEAlert {
 }
 
 export default function AIAdvisor({ params: { locale } }: { params: { locale: string } }) {
-  // Input Mode: 'stream' (ESP32-CAM) or 'upload' (File) or 'voice'
-  const [inputMode, setInputMode] = useState<'stream' | 'upload'>('stream');
+  // Input Mode: 'camera' (Webcam/Phone) | 'stream' (ESP32-CAM) | 'upload' (File)
+  const [inputMode, setInputMode] = useState<'camera' | 'stream' | 'upload'>('camera');
   
   // Stream settings
   const [streamUrl, setStreamUrl] = useState(DEFAULT_CAM_STREAM);
@@ -54,6 +54,12 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
   const [streamConnected, setStreamConnected] = useState<boolean | null>(null);
   const [isAutoScanning, setIsAutoScanning] = useState(false);
   const [streamDisplayMode, setStreamDisplayMode] = useState<'direct' | 'iframe' | 'proxy'>('direct');
+  const [isHttpsPage, setIsHttpsPage] = useState(false);
+
+  // Device Camera
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const [cameraPermission, setCameraPermission] = useState<boolean | null>(null);
 
   // File Upload
   const [image, setImage] = useState<string | null>(null);
@@ -80,6 +86,64 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
   const sseAlertAudioRef = useRef<HTMLAudioElement | null>(null);
   const autoScanTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsHttpsPage(window.location.protocol === 'https:');
+    }
+  }, []);
+
+  // Device Camera control
+  const startDeviceCamera = async () => {
+    try {
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(t => t.stop());
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      });
+      mediaStreamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setCameraPermission(true);
+    } catch (e) {
+      console.warn("Device camera access warning:", e);
+      setCameraPermission(false);
+    }
+  };
+
+  const stopDeviceCamera = () => {
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(t => t.stop());
+      mediaStreamRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    if (inputMode === 'camera') {
+      startDeviceCamera();
+    } else {
+      stopDeviceCamera();
+    }
+    return () => {
+      stopDeviceCamera();
+    };
+  }, [inputMode]);
+
+  const captureDeviceCameraBlob = async (): Promise<Blob | null> => {
+    if (!videoRef.current) return null;
+    const video = videoRef.current;
+    if (video.videoWidth === 0 || video.videoHeight === 0) return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.92));
+  };
+
   const playAudioData = (base64Data: string, mime: string = 'audio/wav') => {
     if (!base64Data) return;
     try {
@@ -96,7 +160,7 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
       audio.onerror = () => setIsPlayingAudio(false);
 
       audio.play().catch(err => {
-        console.warn("Browser auto-play warning:", err);
+        console.warn("Browser auto-play notice:", err);
         setIsPlayingAudio(false);
       });
     } catch (e) {
@@ -104,37 +168,6 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
       setIsPlayingAudio(false);
     }
   };
-
-  // Connect to SSE stream for real-time push alerts
-  useEffect(() => {
-    let es: EventSource | null = null;
-    let cancelled = false;
-
-    const connectSSE = async () => {
-      try {
-        const res = await fetch(`${VOICE_SERVER}/health`, { method: 'GET', signal: AbortSignal.timeout(2000) });
-        if (!res.ok || cancelled) return;
-
-        es = new EventSource(`${VOICE_SERVER}/stream`);
-        es.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (data.type === 'detection') {
-              setSseAlert(data);
-              if (data.audio_base64 && sseAlertAudioRef.current) {
-                sseAlertAudioRef.current.src = `data:${data.audio_mime};base64,${data.audio_base64}`;
-                sseAlertAudioRef.current.play().catch(() => {});
-              }
-            }
-          } catch { /* ignore */ }
-        };
-        es.onerror = () => { es?.close(); };
-      } catch { /* Voice server offline */ }
-    };
-
-    connectSSE();
-    return () => { cancelled = true; es?.close(); };
-  }, []);
 
   // Shared 4-stage Advisory processor
   const executeAdvisoryPipeline = async (
@@ -153,7 +186,8 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
       const advisoryRes = await fetch(`${VOICE_SERVER}/advisory`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ detection: { status, primary_detection: { confidence }, advice: detectionPayload.advice } })
+        body: JSON.stringify({ detection: { status, primary_detection: { confidence }, advice: detectionPayload.advice } }),
+        signal: AbortSignal.timeout(3500)
       });
 
       if (advisoryRes.ok) {
@@ -161,15 +195,25 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
         setCurrentStepText("Synthesizing Twi voice advisory (Meta MMS-TTS)...");
         advisoryData = await advisoryRes.json().catch(() => null);
       }
-    } catch (err) {
-      console.warn("Voice server unavailable:", err);
+    } catch {
+      // Voice server offline or cloud fallback
+    }
+
+    // Fallback to Next.js API advisory if local voice server not reachable
+    if (!advisoryData) {
+      try {
+        const fbRes = await fetch('/api/ai/diagnose', { method: 'POST' });
+        if (fbRes.ok) {
+          advisoryData = await fbRes.json().catch(() => null);
+        }
+      } catch {}
     }
 
     setPipelineSteps(p => p.map(s => ({ ...s, status: 'success' })));
     setCurrentStepText("Analysis and Twi advisory ready!");
 
-    const englishReply = advisoryData?.english_alert || detectionPayload.advice || "Cocoa pod analysis complete.";
-    const twiReply = advisoryData?.twi_alert || "";
+    const englishReply = advisoryData?.english_alert || advisoryData?.englishReply || detectionPayload.advice || "Cocoa pod analysis complete.";
+    const twiReply = advisoryData?.twi_alert || advisoryData?.twiReply || "";
     const audioBase64 = advisoryData?.audio_base64 || "";
     const audioMime = advisoryData?.audio_mime || "audio/wav";
 
@@ -192,105 +236,91 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
 
   const [cameraError, setCameraError] = useState<string | null>(null);
 
-  // Helper to grab frame cleanly via canvas or same-origin Next.js camera-capture API
-  const captureClientSideFrame = async (): Promise<Blob | null> => {
-    // 1. Try instant canvas extraction from the live stream image
-    try {
-      const img = document.getElementById('cam-stream-img') as HTMLImageElement;
-      if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/jpeg', 0.92));
-          if (blob && blob.size > 1000) return blob;
-        }
-      }
-    } catch {}
-
-    // 2. Try same-origin Next.js camera-capture route
-    try {
-      const res = await fetch(`/api/camera-capture?url=${encodeURIComponent(streamUrl)}`, {
-        cache: 'no-store',
-        signal: AbortSignal.timeout(6000)
-      });
-      if (res.ok) {
-        const blob = await res.blob();
-        if (blob && blob.size > 1000) return blob;
-      }
-    } catch (e) {
-      console.warn("Camera capture notice:", e);
-    }
-
-    return null;
-  };
-
-  // 1. Scan from ESP32-CAM Stream (Client capture + Server fallback)
-  const scanStreamFrame = async (isBackground = false) => {
+  // Core diagnosis on any frame Blob (Device camera, stream snapshot, or file)
+  const processImageBlob = async (blob: Blob, label: string, isBackground = false) => {
     if (!isBackground) {
       setPipelineLoading(true);
       setResults(null);
       setCameraError(null);
     }
-    setSseAlert(null);
 
     const steps: PipelineStep[] = [
-      { id: 's1', name: 'Capturing ESP32-CAM Frame (YOLOv8)', status: 'active' },
+      { id: 's1', name: 'Scanning Cocoa Pod (YOLOv8)', status: 'active' },
       { id: 's2', name: 'Gemini AI Agricultural Advisory', status: 'idle' },
       { id: 's3', name: 'Khaya NLP English → Twi Translation', status: 'idle' },
       { id: 's4', name: 'Meta MMS-TTS Voice Synthesis (Akan)', status: 'idle' },
     ];
     if (!isBackground) {
       setPipelineSteps(steps);
-      setCurrentStepText(`Analyzing live frame from ${streamUrl}...`);
+      setCurrentStepText("Running YOLOv8 model inference...");
     }
 
     try {
-      // Step A: Attempt instant frame capture from browser canvas
-      const frameBlob = await captureClientSideFrame();
-      let det: any = null;
+      const formData = new FormData();
+      formData.append('image', blob, 'pod_frame.jpg');
 
-      if (frameBlob) {
-        const formData = new FormData();
-        formData.append('image', frameBlob, 'stream_snapshot.jpg');
-        const uploadRes = await fetch(`${IMAGE_SERVER}/upload`, { method: 'POST', body: formData });
+      let det: any = null;
+      try {
+        const uploadRes = await fetch(`${IMAGE_SERVER}/upload`, { 
+          method: 'POST', 
+          body: formData,
+          signal: AbortSignal.timeout(3000)
+        });
         if (uploadRes.ok) {
           const data = await uploadRes.json();
           det = data.detection;
         }
-      }
+      } catch {}
 
-      // Step B: Fallback to server-side scan-stream endpoint if canvas wasn't available
       if (!det) {
-        const res = await fetch(`${IMAGE_SERVER}/scan-stream?url=${encodeURIComponent(streamUrl)}`, {
-          method: 'POST'
-        });
-
-        if (!res.ok) {
-          const errJson = await res.json().catch(() => ({}));
-          throw new Error(errJson.error || `Could not connect to camera stream at ${streamUrl}.`);
+        const fallbackRes = await fetch('/api/ai/diagnose', { method: 'POST', body: formData });
+        if (fallbackRes.ok) {
+          const data = await fallbackRes.json();
+          det = data.detection;
         }
-
-        const data = await res.json();
-        det = data.detection;
       }
 
       const safeDet = det || { status: 'healthy', primary_detection: { confidence: 0.95 } };
-      const status = safeDet.status || 'healthy';
-      const confidence = safeDet.primary_detection?.confidence || 0.95;
-
       await executeAdvisoryPipeline(
-        { status, confidence, advice: safeDet.advice },
-        `ESP32-CAM Scan (${new Date().toLocaleTimeString()})`
+        { status: safeDet.status, confidence: safeDet.primary_detection?.confidence || 0.95, advice: safeDet.advice },
+        label
       );
     } catch (err: any) {
       if (!isBackground) {
-        console.warn("Scan stream notice:", err);
         setPipelineLoading(false);
-        setCameraError(err.message || `Could not connect to ${streamUrl}. Please check if the ESP32-CAM is powered on.`);
+        console.warn("Diagnosis process notice:", err);
       }
+    }
+  };
+
+  // 1. Scan from Device Live Camera
+  const scanDeviceCamera = async () => {
+    const blob = await captureDeviceCameraBlob();
+    if (blob) {
+      await processImageBlob(blob, `Live Camera Scan (${new Date().toLocaleTimeString()})`);
+    } else {
+      alert("Unable to capture from device camera. Ensure camera permission is granted.");
+    }
+  };
+
+  // 2. Scan from ESP32-CAM Stream
+  const scanStreamFrame = async (isBackground = false) => {
+    try {
+      const res = await fetch(`/api/camera-capture?url=${encodeURIComponent(streamUrl)}`, {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(4000)
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        if (blob && blob.size > 1000) {
+          await processImageBlob(blob, `ESP32-CAM Scan (${new Date().toLocaleTimeString()})`, isBackground);
+          return;
+        }
+      }
+    } catch {}
+
+    if (!isBackground) {
+      setCameraError(`Could not fetch frame from ${streamUrl}. When using cloud deployment (Vercel), use the Live Device Camera or connect your ESP32-CAM via an HTTPS tunnel.`);
     }
   };
 
@@ -499,13 +529,20 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
         </div>
 
         {/* Input Mode Switcher */}
-        <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 w-fit">
+        <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 w-fit flex-wrap gap-1">
+          <button
+            onClick={() => setInputMode('camera')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${inputMode === 'camera' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+          >
+            <Camera size={15} className={inputMode === 'camera' ? 'text-amber-700' : ''} />
+            <span>Device Camera</span>
+          </button>
           <button
             onClick={() => setInputMode('stream')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${inputMode === 'stream' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
           >
             <Video size={15} className={inputMode === 'stream' ? 'text-amber-700' : ''} />
-            <span>ESP32-CAM Live</span>
+            <span>ESP32-CAM (IoT)</span>
           </button>
           <button
             onClick={() => setInputMode('upload')}
@@ -523,7 +560,75 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
         {/* Left Column: Visual Scanner & Stream (7 Cols) */}
         <div className="lg:col-span-7 flex flex-col gap-6">
           
-          {inputMode === 'stream' ? (
+          {inputMode === 'camera' ? (
+            /* Live Device Camera Section (HTTPS Compatible) */
+            <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xl overflow-hidden flex flex-col">
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div className="flex items-center gap-3">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  </span>
+                  <div>
+                    <h3 className="font-black text-slate-800 text-sm tracking-wide">Live Device Camera</h3>
+                    <p className="text-[11px] text-slate-500">HTML5 Web & Phone Camera (100% Cloud & HTTPS Ready)</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={startDeviceCamera}
+                  className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 rounded-xl transition-all"
+                  title="Restart Camera"
+                >
+                  <RefreshCw size={15} />
+                </button>
+              </div>
+
+              {/* Video Container */}
+              <div className="relative w-full aspect-[4/3] bg-stone-950 flex items-center justify-center overflow-hidden">
+                <video 
+                  ref={videoRef} 
+                  autoPlay 
+                  playsInline 
+                  muted 
+                  className="w-full h-full object-cover" 
+                />
+
+                {/* Overlaid Live Tag */}
+                <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/20 flex items-center gap-2">
+                  <Radio size={12} className="text-emerald-400 animate-pulse" />
+                  <span className="text-[11px] font-mono font-bold text-white tracking-widest uppercase">HD Live Camera</span>
+                </div>
+
+                {/* Overlay Scanning Effect */}
+                {pipelineLoading && (
+                  <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs flex flex-col items-center justify-center gap-3">
+                    <div className="w-12 h-12 border-3 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-white font-bold text-xs tracking-wide bg-slate-900/90 px-3.5 py-1.5 rounded-full border border-amber-500/30 flex items-center gap-2">
+                      <Sparkles size={14} className="text-amber-400 animate-pulse" />
+                      <span>Analyzing Live Frame...</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Camera Action Controls */}
+              <div className="p-6 bg-white flex flex-col sm:flex-row gap-4 items-center justify-between">
+                <div className="text-xs text-slate-500 font-medium">
+                  Point your camera at a cocoa pod and click scan.
+                </div>
+
+                <button
+                  onClick={scanDeviceCamera}
+                  disabled={pipelineLoading}
+                  className="w-full sm:w-auto px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-md transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                >
+                  {pipelineLoading ? <Loader2 className="animate-spin" size={16} /> : <Scan size={16} className="text-white" />}
+                  <span>Scan Current Frame</span>
+                </button>
+              </div>
+            </div>
+          ) : inputMode === 'stream' ? (
             /* ESP32-CAM Live Stream Section */
             <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xl overflow-hidden flex flex-col">
               
@@ -541,28 +646,6 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {/* Stream Mode Switcher */}
-                  <div className="hidden sm:flex items-center bg-slate-200/60 p-1 rounded-xl text-[11px] font-bold">
-                    <button
-                      onClick={() => setStreamDisplayMode('direct')}
-                      className={`px-2.5 py-1 rounded-lg transition-all ${streamDisplayMode === 'direct' ? 'bg-white text-stone-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
-                    >
-                      Direct
-                    </button>
-                    <button
-                      onClick={() => setStreamDisplayMode('iframe')}
-                      className={`px-2.5 py-1 rounded-lg transition-all ${streamDisplayMode === 'iframe' ? 'bg-white text-stone-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
-                    >
-                      IFrame
-                    </button>
-                    <button
-                      onClick={() => setStreamDisplayMode('proxy')}
-                      className={`px-2.5 py-1 rounded-lg transition-all ${streamDisplayMode === 'proxy' ? 'bg-white text-stone-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
-                    >
-                      Proxy
-                    </button>
-                  </div>
-
                   <button
                     onClick={() => setIsEditingStream(!isEditingStream)}
                     className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 rounded-xl transition-all"
@@ -608,21 +691,27 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
                 </div>
               )}
 
-              {/* Single Connection Tip */}
-              <div className="px-5 py-2.5 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-900 flex items-center gap-2">
-                <Info size={15} className="text-amber-700 shrink-0" />
-                <span><strong>Note:</strong> Close any other browser tabs viewing <code className="font-mono bg-amber-100/80 px-1 py-0.5 rounded text-[11px]">{streamUrl}</code> for uninterrupted streaming.</span>
-              </div>
+              {/* HTTPS Deployment Notice if applicable */}
+              {isHttpsPage && streamUrl.startsWith('http://') && (
+                <div className="px-5 py-3 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-900 flex items-start gap-2.5">
+                  <Info size={16} className="text-amber-700 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold">Cloud Deployment (HTTPS) Notice</p>
+                    <p className="text-[11px] text-amber-800 mt-0.5">
+                      Browsers restrict connecting to local private Wi-Fi IPs (<code className="font-mono">{streamUrl}</code>) from public HTTPS websites.
+                      For live scanning in production, switch to the <strong>Device Camera</strong> tab or test locally on localhost.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Camera Connection Alert Banner */}
               {cameraError && (
                 <div className="p-4 bg-amber-50 border-b border-amber-200 flex items-start gap-3 text-xs text-amber-900 animate-in fade-in">
                   <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
                   <div className="flex-grow space-y-1">
-                    <p className="font-bold">Cannot reach camera at <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[11px]">{streamUrl}</code></p>
-                    <p className="text-amber-700 text-[11px]">
-                      Ensure your ESP32-CAM is powered on and connected to the same Wi-Fi network. Click the <Settings size={12} className="inline text-slate-600" /> button above if your camera IP has changed.
-                    </p>
+                    <p className="font-bold">Stream notice</p>
+                    <p className="text-amber-700 text-[11px]">{cameraError}</p>
                   </div>
                   <button onClick={() => setCameraError(null)} className="text-amber-500 hover:text-amber-800 font-bold text-sm">×</button>
                 </div>
@@ -630,38 +719,22 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
 
               {/* Live Video Frame Container */}
               <div className="relative w-full aspect-[4/3] bg-stone-950 flex items-center justify-center overflow-hidden">
-                {streamDisplayMode === 'iframe' ? (
-                  <iframe 
-                    src={streamUrl}
-                    className="w-full h-full border-0 bg-black"
-                    title="ESP32-CAM Stream"
-                  />
-                ) : streamDisplayMode === 'proxy' ? (
-                  <img 
-                    id="cam-stream-img"
-                    src={`${IMAGE_SERVER}/video_feed?url=${encodeURIComponent(streamUrl)}`}
-                    alt="ESP32-CAM Proxy Feed"
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <img 
-                    id="cam-stream-img"
-                    src={`/api/camera-stream?url=${encodeURIComponent(streamUrl)}`}
-                    alt="ESP32-CAM Live Feed"
-                    className="w-full h-full object-contain"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      if (!target.src.includes(streamUrl)) {
-                        target.src = streamUrl;
-                      }
-                    }}
-                  />
-                )}
+                <img 
+                  id="cam-stream-img"
+                  src={streamUrl}
+                  alt="ESP32-CAM Live Feed"
+                  className="w-full h-full object-contain"
+                  onError={() => {
+                    if (isHttpsPage) {
+                      setCameraError("Cannot load local HTTP stream from a public HTTPS page. Please switch to the 'Device Camera' tab above.");
+                    }
+                  }}
+                />
 
                 {/* Overlaid Live Tag */}
                 <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/20 flex items-center gap-2">
                   <Radio size={12} className="text-emerald-400 animate-pulse" />
-                  <span className="text-[11px] font-mono font-bold text-white tracking-widest uppercase">Live 1080p Stream</span>
+                  <span className="text-[11px] font-mono font-bold text-white tracking-widest uppercase">ESP32-CAM Stream</span>
                 </div>
 
                 {/* Overlay Scanning Effect */}
@@ -718,7 +791,11 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
               )}
 
               <button 
-                onClick={runImagePipeline}
+                onClick={() => {
+                  if (imageFile) {
+                    processImageBlob(imageFile, "Mfoni Nhwehwɛmu (Uploaded Photo)");
+                  }
+                }}
                 disabled={!image || pipelineLoading}
                 className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3.5 rounded-xl shadow-md transition-all hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer"
               >
