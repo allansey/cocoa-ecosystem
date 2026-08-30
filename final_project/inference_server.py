@@ -66,13 +66,16 @@ def perform_yolo_inference(image_input):
     """Run YOLOv8 prediction on an image file path or PIL Image."""
     global latest_detection
 
+    if isinstance(image_input, Image.Image):
+        image_input = image_input.convert("RGB")
+
     results = model(image_input)
     boxes = results[0].boxes
 
     if len(boxes) == 0:
         status = "healthy"
         confidence = 1.0
-        print("[YOLO] No disease detections found — classified as healthy")
+        print("[YOLO] No disease detections found — classified as healthy", flush=True)
     else:
         # Get detection with highest confidence
         best_box = max(boxes, key=lambda x: float(x.conf[0]))
@@ -90,7 +93,7 @@ def perform_yolo_inference(image_input):
         else:
             status = class_name
 
-        print(f"[YOLO] Detected: {class_name} -> {status} (confidence {confidence})")
+        print(f"[YOLO] Detected: {class_name} -> {status} (confidence {confidence})", flush=True)
 
     advice = ADVICE.get(status, f"Detected condition: {status}. Consult your local extension officer.")
 
