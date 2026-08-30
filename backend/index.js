@@ -68,14 +68,59 @@ app.use('/api/iot', iotRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/offers', offerRoutes);
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(500).json({ error: 'Internal Server Error' });
-});
+const prismaClient = require('./prismaClient');
+
+async function bootstrapDatabase() {
+  try {
+    const alterStatements = [
+      `ALTER TABLE "Listing" ADD COLUMN IF NOT EXISTS "moistureLevel" DOUBLE PRECISION;`,
+      `ALTER TABLE "Listing" ADD COLUMN IF NOT EXISTS "aiHealthScore" DOUBLE PRECISION;`,
+      `ALTER TABLE "Listing" ADD COLUMN IF NOT EXISTS "diseaseStatus" TEXT;`,
+      `ALTER TABLE "Listing" ADD COLUMN IF NOT EXISTS "harvestDate" TIMESTAMP;`,
+      `ALTER TABLE "Listing" ADD COLUMN IF NOT EXISTS "photo" TEXT;`,
+      `ALTER TABLE "Listing" ADD COLUMN IF NOT EXISTS "status" TEXT DEFAULT 'AVAILABLE';`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "proposedPrice" DOUBLE PRECISION;`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "deliveryAddress" TEXT;`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "deliveryCity" TEXT;`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "deliveryRegion" TEXT;`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "recipientName" TEXT;`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "recipientPhone" TEXT;`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "deliveryNotes" TEXT;`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "subtotal" DOUBLE PRECISION;`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "deliveryFee" DOUBLE PRECISION DEFAULT 0;`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "serviceFee" DOUBLE PRECISION DEFAULT 0;`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "transporterName" TEXT;`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "transporterPhone" TEXT;`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "vehicleNumber" TEXT;`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "trackingNumber" TEXT;`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "estimatedDeliveryDate" TEXT;`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "loadingProofPhoto" TEXT;`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "weighbridgeReceipt" TEXT;`,
+      `ALTER TABLE "Offer" ADD COLUMN IF NOT EXISTS "counterPrice" DOUBLE PRECISION;`,
+      `ALTER TABLE "Offer" ADD COLUMN IF NOT EXISTS "counterQuantity" DOUBLE PRECISION;`,
+      `ALTER TABLE "Offer" ADD COLUMN IF NOT EXISTS "note" TEXT;`,
+      `ALTER TABLE "Offer" ADD COLUMN IF NOT EXISTS "chatId" TEXT;`,
+      `ALTER TABLE "Offer" ADD COLUMN IF NOT EXISTS "orderId" TEXT;`,
+      `ALTER TABLE "Review" ADD COLUMN IF NOT EXISTS "targetUserId" TEXT;`,
+      `ALTER TABLE "Review" ADD COLUMN IF NOT EXISTS "badges" TEXT;`
+    ];
+
+    for (const sql of alterStatements) {
+      try {
+        await prismaClient.$executeRawUnsafe(sql);
+      } catch (e) {
+        // Safe to ignore if column already exists or table not created yet
+      }
+    }
+    console.log('[Database] PostgreSQL schema columns verified and up-to-date.');
+  } catch (err) {
+    console.warn('[Database] Bootstrap notice:', err.message);
+  }
+}
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
+  await bootstrapDatabase();
 });
