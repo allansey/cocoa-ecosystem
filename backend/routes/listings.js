@@ -116,7 +116,7 @@ router.get('/my-listings', [authMiddleware, farmerRoleMiddleware], async (req, r
     res.json(listings);
   } catch (error) {
     console.error('[Listings API Error (my-listings)]:', error);
-    res.status(500).json({ error: 'Server error fetching your listings.' });
+    res.status(500).json({ error: 'Server error fetching your listings.', details: error.message || String(error) });
   }
 });
 

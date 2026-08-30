@@ -25,7 +25,7 @@ router.get('/my-offers', authMiddleware, async (req, res) => {
     res.json(offers);
   } catch (err) {
     console.error('[Offers API Error (my-offers)]:', err);
-    res.status(500).json({ error: 'Failed to fetch offers' });
+    res.status(500).json({ error: 'Failed to fetch offers', details: err.message || String(err) });
   }
 });
 

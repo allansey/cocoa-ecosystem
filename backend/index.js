@@ -72,6 +72,69 @@ const prismaClient = require('./prismaClient');
 
 async function bootstrapDatabase() {
   try {
+    const tableStatements = [
+      `CREATE TABLE IF NOT EXISTS "Offer" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "listingId" TEXT NOT NULL,
+        "buyerId" TEXT NOT NULL,
+        "farmerId" TEXT NOT NULL,
+        "priceGhsPerTonne" DOUBLE PRECISION NOT NULL,
+        "quantityKg" DOUBLE PRECISION NOT NULL,
+        "totalAmount" DOUBLE PRECISION NOT NULL,
+        "status" TEXT NOT NULL DEFAULT 'PENDING',
+        "counterPrice" DOUBLE PRECISION,
+        "counterQuantity" DOUBLE PRECISION,
+        "note" TEXT,
+        "chatId" TEXT,
+        "orderId" TEXT,
+        "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );`,
+      `CREATE TABLE IF NOT EXISTS "OrderActivity" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "orderId" TEXT NOT NULL,
+        "actorId" TEXT NOT NULL,
+        "actorName" TEXT NOT NULL,
+        "actorRole" TEXT NOT NULL,
+        "action" TEXT NOT NULL,
+        "note" TEXT,
+        "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );`,
+      `CREATE TABLE IF NOT EXISTS "Review" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "orderId" TEXT NOT NULL UNIQUE,
+        "userId" TEXT NOT NULL,
+        "targetUserId" TEXT,
+        "rating" INTEGER NOT NULL DEFAULT 5,
+        "comment" TEXT,
+        "badges" TEXT,
+        "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );`,
+      `CREATE TABLE IF NOT EXISTS "SensorReading" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "soilMoisture" DOUBLE PRECISION NOT NULL,
+        "temperature" DOUBLE PRECISION NOT NULL,
+        "humidity" DOUBLE PRECISION NOT NULL,
+        "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );`,
+      `CREATE TABLE IF NOT EXISTS "Message" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "chatId" TEXT NOT NULL,
+        "senderId" TEXT NOT NULL,
+        "senderName" TEXT NOT NULL,
+        "text" TEXT NOT NULL,
+        "audioUrl" TEXT,
+        "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );`
+    ];
+
+    for (const sql of tableStatements) {
+      try {
+        await prismaClient.$executeRawUnsafe(sql);
+      } catch (e) {}
+    }
+
     const alterStatements = [
       `ALTER TABLE "Listing" ADD COLUMN IF NOT EXISTS "moistureLevel" DOUBLE PRECISION;`,
       `ALTER TABLE "Listing" ADD COLUMN IF NOT EXISTS "aiHealthScore" DOUBLE PRECISION;`,
@@ -108,11 +171,9 @@ async function bootstrapDatabase() {
     for (const sql of alterStatements) {
       try {
         await prismaClient.$executeRawUnsafe(sql);
-      } catch (e) {
-        // Safe to ignore if column already exists or table not created yet
-      }
+      } catch (e) {}
     }
-    console.log('[Database] PostgreSQL schema columns verified and up-to-date.');
+    console.log('[Database] PostgreSQL tables and schema columns verified and up-to-date.');
   } catch (err) {
     console.warn('[Database] Bootstrap notice:', err.message);
   }
