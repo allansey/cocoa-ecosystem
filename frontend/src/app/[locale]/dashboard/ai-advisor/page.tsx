@@ -192,20 +192,38 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
 
   const [cameraError, setCameraError] = useState<string | null>(null);
 
-  // Helper to grab frame cleanly via same-origin Next.js camera-capture API (No CORS issues)
+  // Helper to grab frame cleanly via canvas or same-origin Next.js camera-capture API
   const captureClientSideFrame = async (): Promise<Blob | null> => {
+    // 1. Try instant canvas extraction from the live stream image
+    try {
+      const img = document.getElementById('cam-stream-img') as HTMLImageElement;
+      if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/jpeg', 0.92));
+          if (blob && blob.size > 1000) return blob;
+        }
+      }
+    } catch {}
+
+    // 2. Try same-origin Next.js camera-capture route
     try {
       const res = await fetch(`/api/camera-capture?url=${encodeURIComponent(streamUrl)}`, {
         cache: 'no-store',
-        signal: AbortSignal.timeout(3000)
+        signal: AbortSignal.timeout(6000)
       });
       if (res.ok) {
         const blob = await res.blob();
         if (blob && blob.size > 1000) return blob;
       }
     } catch (e) {
-      console.warn("Client camera-capture fetch notice:", e);
+      console.warn("Camera capture notice:", e);
     }
+
     return null;
   };
 
@@ -646,10 +664,15 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
                 ) : (
                   <img 
                     id="cam-stream-img"
-                    src={streamUrl}
+                    src={`/api/camera-stream?url=${encodeURIComponent(streamUrl)}`}
                     alt="ESP32-CAM Live Feed"
                     className="w-full h-full object-contain"
-                    onError={() => setStreamDisplayMode('proxy')}
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      if (!target.src.includes(streamUrl)) {
+                        target.src = streamUrl;
+                      }
+                    }}
                   />
                 )}
 
