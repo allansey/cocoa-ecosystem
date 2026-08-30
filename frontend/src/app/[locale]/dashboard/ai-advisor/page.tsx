@@ -189,11 +189,14 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
     }
   };
 
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
   // 1. Scan from ESP32-CAM Stream
   const scanStreamFrame = async () => {
     setPipelineLoading(true);
     setResults(null);
     setSseAlert(null);
+    setCameraError(null);
 
     const steps: PipelineStep[] = [
       { id: 's1', name: 'Capturing ESP32-CAM Frame (YOLOv8)', status: 'active' },
@@ -226,7 +229,7 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
     } catch (err: any) {
       console.error(err);
       setPipelineLoading(false);
-      alert(err.message || "Failed to scan camera stream. Make sure ESP32-CAM is online on your Wi-Fi.");
+      setCameraError(err.message || `Could not connect to ${streamUrl}. Please check if the ESP32-CAM is powered on and connected.`);
     }
   };
 
@@ -531,6 +534,20 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
                   >
                     Save URL
                   </button>
+                </div>
+              )}
+
+              {/* Camera Connection Alert Banner */}
+              {cameraError && (
+                <div className="p-4 bg-amber-50 border-b border-amber-200 flex items-start gap-3 text-xs text-amber-900 animate-in fade-in">
+                  <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                  <div className="flex-grow space-y-1">
+                    <p className="font-bold">Cannot reach camera at <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[11px]">{streamUrl}</code></p>
+                    <p className="text-amber-700 text-[11px]">
+                      Ensure your ESP32-CAM is powered on and connected to the same Wi-Fi network. Click the ⚙️ button above if your camera IP has changed.
+                    </p>
+                  </div>
+                  <button onClick={() => setCameraError(null)} className="text-amber-500 hover:text-amber-800 font-bold text-sm">×</button>
                 </div>
               )}
 

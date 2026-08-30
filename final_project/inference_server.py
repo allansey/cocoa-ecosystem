@@ -213,8 +213,9 @@ def upload():
 
 @app.route("/scan-stream", methods=["GET", "POST"])
 def scan_stream():
-    """Grab a live frame from the ESP32-CAM stream (192.168.137.226:81/stream) and run YOLO."""
-    stream_url = request.args.get("url") or CAMERA_STREAM_URL
+    """Grab a live frame from the ESP32-CAM stream and run YOLO."""
+    json_data = request.get_json(silent=True) or {}
+    stream_url = request.args.get("url") or json_data.get("url") or request.form.get("url") or CAMERA_STREAM_URL
     frame = grab_frame_from_camera(stream_url)
 
     if frame is None:
