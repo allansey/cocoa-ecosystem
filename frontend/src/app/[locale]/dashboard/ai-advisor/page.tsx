@@ -217,7 +217,11 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
     // Fallback to Next.js API advisory if local voice server not reachable
     if (!advisoryData) {
       try {
-        const fbRes = await fetch('/api/ai/diagnose', { method: 'POST' });
+        const fbRes = await fetch('/api/ai/diagnose', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status, confidence })
+        });
         if (fbRes.ok) {
           advisoryData = await fbRes.json().catch(() => null);
         }

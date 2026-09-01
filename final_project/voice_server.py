@@ -159,6 +159,14 @@ DISEASE_DISPLAY_NAMES = {
     "frosty_pod_rot":  "Frosty Pod Rot (Moniliophthora / Monilia Nyarewa)",
 }
 
+def normalize_status(raw_status: str) -> str:
+    s = str(raw_status or "healthy").lower().strip()
+    if "black" in s or "phyto" in s:
+        return "black_pod_rot"
+    if "frost" in s or "monil" in s:
+        return "frosty_pod_rot"
+    return "healthy"
+
 # Rich detailed fallback agronomic templates
 DETAILED_ADVICE_TEMPLATES = {
     "healthy": (
@@ -205,6 +213,21 @@ DETAILED_TWI_TEMPLATES = {
     )
 }
 
+# In-memory pre-synthesized audio cache for instantaneous response
+_AUDIO_CACHE = {}
+
+def warm_up_audio_cache():
+    """Pre-generate MMS-TTS waveforms for all standard disease templates at startup."""
+    print("[MMS-TTS] Pre-warming speech cache for all cocoa diseases...")
+    for key, text in DETAILED_TWI_TEMPLATES.items():
+        try:
+            wav = synthesize_twi_audio(text)
+            _AUDIO_CACHE[key] = wav
+            print(f"  ✓ Cached Akan voice for '{key}': {len(wav)} bytes")
+        except Exception as e:
+            print(f"  ✗ Failed to pre-cache voice for '{key}': {e}")
+    print("[MMS-TTS] Pre-warming complete! Voice responses will serve instantly (<50ms).")
+
 # Latest detection received via /notify
 _cached_detection = None
 _cached_lock = threading.Lock()
@@ -215,41 +238,24 @@ _last_broadcast = None
 
 def _build_twi_alert(status: str, confidence: float, advice: str = "") -> tuple[str, str, bytes]:
     """
-    Build detailed English advisory text using Gemini, retrieve authentic
-    expert Akan Twi agronomic advice, and synthesize to full-length Twi speech audio.
-    Returns (english_text, twi_text, audio_wav_bytes) in under 3 seconds.
+    Build detailed English advisory text matching the detected disease,
+    retrieve authentic expert Akan Twi agronomic advice, and return synthesized audio.
     """
-    disease = DISEASE_DISPLAY_NAMES.get(status, status.replace("_", " ").title())
+    clean_status = normalize_status(status)
+    disease = DISEASE_DISPLAY_NAMES.get(clean_status, clean_status.replace("_", " ").title())
     pct = int(round(confidence * 100)) if confidence <= 1.0 else int(confidence)
     
-    fallback_english = DETAILED_ADVICE_TEMPLATES.get(status, DETAILED_ADVICE_TEMPLATES["healthy"])
-    twi_alert = DETAILED_TWI_TEMPLATES.get(status, DETAILED_TWI_TEMPLATES["healthy"])
+    english_alert = DETAILED_ADVICE_TEMPLATES.get(clean_status, DETAILED_ADVICE_TEMPLATES["healthy"])
+    twi_alert = DETAILED_TWI_TEMPLATES.get(clean_status, DETAILED_TWI_TEMPLATES["healthy"])
 
-    # Fast Gemini enrichment if available
-    english_alert = ""
-    try:
-        if status == "healthy":
-            prompt = f"The cocoa pod is HEALTHY ({pct}% confidence). Provide 4 detailed sentences on farm sanitation, weeding, shade control (30%), fertilizer (Asaase Wura), and weekly pod monitoring for Ghanaian cocoa farmers."
-        else:
-            prompt = f"The cocoa pod has {disease} ({pct}% confidence). Provide 4 detailed sentences covering immediate quarantine (deep burial), copper fungicide spraying (Nordox 75 WG every 2-3 weeks), and canopy pruning."
-        
-        gemini_response = gemini_client.models.generate_content(
-            model=GEMINI_MODEL, contents=prompt
-        )
-        if gemini_response and gemini_response.text:
-            english_alert = gemini_response.text.strip()
-    except Exception as e:
-        print(f"  (Gemini advisory notice: {e})")
-
-    if not english_alert or len(english_alert) < 50:
-        english_alert = fallback_english
-
-    # Synthesize authentic multi-sentence Akan Twi audio
-    audio_bytes = b""
-    try:
-        audio_bytes = synthesize_twi_audio(twi_alert)
-    except Exception as e:
-        print(f"  (MMS-TTS alert synthesis notice: {e})")
+    # Fast audio retrieval from warm cache
+    audio_bytes = _AUDIO_CACHE.get(clean_status) or b""
+    if not audio_bytes:
+        try:
+            audio_bytes = synthesize_twi_audio(twi_alert)
+            _AUDIO_CACHE[clean_status] = audio_bytes
+        except Exception as e:
+            print(f"  (MMS-TTS on-demand synthesis notice: {e})")
 
     return english_alert, twi_alert, audio_bytes
 
@@ -540,6 +546,7 @@ def voice():
 
 
 if __name__ == "__main__":
+    warm_up_audio_cache()
     port = int(os.environ.get("PORT", 5001))
     print(f"Starting Cocoa Voice + AI Advisor on port {port}...")
     app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
