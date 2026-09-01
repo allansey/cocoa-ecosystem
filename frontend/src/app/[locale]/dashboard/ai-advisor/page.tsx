@@ -151,16 +151,31 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
         activeAudioInstanceRef.current.pause();
         activeAudioInstanceRef.current = null;
       }
-      const audio = new Audio(`data:${mime};base64,${base64Data}`);
+
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: mime });
+      const blobUrl = URL.createObjectURL(blob);
+
+      const audio = new Audio(blobUrl);
       activeAudioInstanceRef.current = audio;
 
       audio.onplay = () => setIsPlayingAudio(true);
       audio.onpause = () => setIsPlayingAudio(false);
       audio.onended = () => setIsPlayingAudio(false);
-      audio.onerror = () => setIsPlayingAudio(false);
+      audio.onerror = (e) => {
+        console.warn("Audio playback error:", e);
+        setIsPlayingAudio(false);
+      };
 
-      audio.play().catch(err => {
-        console.warn("Browser auto-play notice:", err);
+      audio.play().then(() => {
+        setIsPlayingAudio(true);
+      }).catch(err => {
+        console.warn("Browser autoplay notice (click play button to listen):", err);
         setIsPlayingAudio(false);
       });
     } catch (e) {

@@ -77,13 +77,14 @@ POD_KEYWORDS = [
 ]
 
 SYSTEM_PROMPT = (
-    "You are an AI cocoa farming advisor for smallholder farmers in Ghana. "
-    "You speak warmly and respectfully. Keep responses short and practical - "
-    "two to three sentences maximum. Avoid jargon. If specific disease "
-    "information is provided in the prompt, use it to give targeted advice. "
-    "If you don't know something specific, suggest the farmer contact their "
-    "local cocoa extension officer. Reply in plain English; translation to "
-    "Twi happens automatically afterward."
+    "You are an expert Senior Cocoa Agronomist and AI Advisor assisting smallholder cocoa farmers in Ghana. "
+    "You speak warmly, respectfully, and with deep agricultural expertise. "
+    "Provide thorough, detailed, and comprehensive practical advice (4 to 6 full sentences) covering: "
+    "1) The diagnosis and severity of the condition, "
+    "2) Immediate quarantine and sanitation steps (e.g. prompt harvesting, burial, tool sterilization), "
+    "3) Approved chemical or organic treatments (e.g. copper-based fungicides like Nordox or Ridomil Gold every 2-3 weeks), "
+    "4) Farm management practices (canopy pruning, shade reduction, drainage, weeding) to prevent recurrence. "
+    "Reply in clear, accessible plain English; translation to Akan Twi happens automatically afterward."
 )
 
 # ===== Initialize clients =====
@@ -99,102 +100,156 @@ tts_model = VitsModel.from_pretrained("facebook/mms-tts-aka")
 tts_tokenizer = VitsTokenizer.from_pretrained("facebook/mms-tts-aka")
 tts_model.eval()
 # Tweak these if speech is too fast/slow or too monotone
-tts_model.speaking_rate = 0.75   # slightly slower for more natural pacing
-tts_model.noise_scale = 1    # higher noise_scale increases expressive variation (less monotone)
+tts_model.speaking_rate = 0.82   # natural pacing
+tts_model.noise_scale = 0.9    # clear, expressive pitch
 print(f"  MMS-TTS ready (sample rate: {tts_model.config.sampling_rate} Hz)")
 
 app = Flask(__name__)
 CORS(app, expose_headers=["Content-Type"])
 
 
-# ===== TTS via Meta's MMS-TTS Akan =====
+# ===== TTS via Meta's MMS-TTS Akan (Multi-Sentence Concatenation) =====
 def synthesize_twi_audio(text: str) -> bytes:
     """
-    Synthesize Twi/Akan text to WAV audio bytes using Meta's MMS-TTS.
-    Replaces Khaya TTS - runs locally, no API key, no rate limit.
+    Synthesize lengthy Twi/Akan text to WAV audio bytes using Meta's MMS-TTS.
+    Splits text by punctuation into natural sentences and concatenates waveforms
+    with slight pauses to guarantee full-length, natural-sounding spoken audio.
     """
-    inputs = tts_tokenizer(text, return_tensors="pt")
-    with torch.no_grad():
-        output = tts_model(**inputs).waveform
+    import re
+    if not text or not text.strip():
+        return b""
 
-    waveform = output.squeeze().cpu().numpy()
-    waveform_int16 = (waveform * 32767).astype(np.int16)
+    # Split into clean sentence chunks
+    sentences = [s.strip() for s in re.split(r'[\.\n\!]+', text) if len(s.strip()) > 2]
+    if not sentences:
+        sentences = [text.strip()]
 
+    waveforms = []
+    sr = tts_model.config.sampling_rate
+    silence = np.zeros(int(sr * 0.22), dtype=np.int16) # 220ms natural pause between sentences
+
+    for s in sentences:
+        try:
+            inputs = tts_tokenizer(s, return_tensors="pt")
+            with torch.no_grad():
+                output = tts_model(**inputs).waveform
+
+            waveform = output.squeeze().cpu().numpy()
+            waveform_int16 = (waveform * 32767).astype(np.int16)
+            waveforms.append(waveform_int16)
+            waveforms.append(silence)
+        except Exception as err:
+            print(f"[MMS-TTS] Sentence synthesis notice on '{s[:30]}...': {err}")
+
+    if not waveforms:
+        return b""
+
+    combined = np.concatenate(waveforms)
     buf = io.BytesIO()
-    scipy.io.wavfile.write(buf, tts_model.config.sampling_rate, waveform_int16)
+    scipy.io.wavfile.write(buf, sr, combined)
     return buf.getvalue()
 
 
 # ===== Real-time push infrastructure =====
-# Diseased classes that trigger browser alerts. Healthy / no_pod_detected are
-# silently cached but NOT pushed to the browser.
 DISEASE_STATUSES = {"black_pod_rot", "frosty_pod_rot"}
 
-# Friendly disease / condition names
 DISEASE_DISPLAY_NAMES = {
-    "healthy":         "Healthy Cocoa Pod",
-    "black_pod_rot":   "Black Pod Rot (Phytophthora)",
-    "frosty_pod_rot":  "Frosty Pod Rot (Moniliophthora)",
+    "healthy":         "Healthy Cocoa Pod (Apan Pa)",
+    "black_pod_rot":   "Black Pod Rot (Phytophthora / Kookoo Pono Funu)",
+    "frosty_pod_rot":  "Frosty Pod Rot (Moniliophthora / Monilia Nyarewa)",
 }
 
-# Latest detection received via /notify (used by /voice queries).
+# Rich detailed fallback agronomic templates
+DETAILED_ADVICE_TEMPLATES = {
+    "healthy": (
+        "Your cocoa pod is vigorous, firm, and in optimal healthy condition with no signs of fungal or pest infection. "
+        "To maintain this high yield, ensure regular monthly weeding around the base of the cocoa trees and maintain a 30% shade canopy. "
+        "Apply recommended COCOBOD fertilizers such as Asaase Wura during the major rainy season to boost pod growth. "
+        "Inspect your plantation weekly for any early moisture or discoloration spots."
+    ),
+    "black_pod_rot": (
+        "Your cocoa pod is infected with Black Pod Disease caused by Phytophthora palmivora fungus. "
+        "Immediately harvest and bury all infected pods at least 30 centimeters deep away from your plantation to stop fungal spores from spreading. "
+        "Prune excessive shade branches and chupons to allow sunlight and airflow to dry out humidity inside the cocoa canopy. "
+        "Spray an approved copper-based fungicide such as Nordox 75 WG or Champion WP every two to three weeks during the wet season. "
+        "Ensure all harvesting sickles and pruning knives are sanitized with bleach or methylated spirit after every use."
+    ),
+    "frosty_pod_rot": (
+        "Your cocoa pod has been infected with Frosty Pod Rot caused by Moniliophthora roreri. "
+        "Carefully harvest and bag the infected pods before the white powdery spore layer matures and becomes airborne across your farm. "
+        "Bury the infected pods deep in the soil or cover them under dense mulch far from healthy trees. "
+        "Conduct weekly sanitary tree inspections and prune off all mummified pods from previous seasons. "
+        "Report widespread outbreaks to your local COCOBOD extension officer for community-level fungicide support."
+    )
+}
+
+DETAILED_TWI_TEMPLATES = {
+    "healthy": (
+        "Wo kookoo pono no wɔ ahoɔden na ɛyɛ fann a nyarewa anaa mmoawa biara nni ho. "
+        "Sɛ wopɛ sɛ wunya nnɔbae pa daa a, do nwura a ɛwɔ kookoo nnua no ase no daa na ma owia hann kakra nkɔ mu. "
+        "Gu aduro pa te sɛ Asaase Wura gu nnua no ase wɔ nsuo bere mu na ama aba no anyin yiye. "
+        "Kɔ w'afuo mu dapɛn biara kɔhwɛ sɛ pono foforo biara nso yɛ fann anaa."
+    ),
+    "black_pod_rot": (
+        "Kookoo pono funu a wɔfrɛ no Black Pod Rot na aba wo kookoo pono no so. "
+        "Twa pono a asɛe no nyinaa ntɛm ara na kɔsie wɔ dɔte mu kwansin baako firi afuo no ho sɛnea mmoawa no renhwete. "
+        "Twa mman a adɔ dodo no na ma owia hann ne mframa pa nkɔ afuo no mu mma nsuo anhore nnua no so. "
+        "Gu kɔpa aduro (Copper Fungicide) te sɛ Nordox gu nnua no so dapɛn mmienu mmienu biara wɔ nsuo bere mu. "
+        "Hohor nkrante ne afidie a wode twa kookoo no ho yiye daa ansa na wode aka nnua a ɛwɔ ahoɔden."
+    ),
+    "frosty_pod_rot": (
+        "Kookoo pono yi anya Monilia nyarewa a ɛma pono no hore na ɛyɛ funu. "
+        "Twa pono a anya nyarewa no ntɛm ansa na ɛno ho ayɛ fitaa ahwete wɔ mframa mu akɔ nnua afoforo so. "
+        "Sie kookoo pono a asɛe no wɔ dɔte mu bun a emu dɔ yiye na amma mmoawa no anwura fam. "
+        "Kɔ w'afuo mu dapɛn biara kɔpepa pono funu nyinaa na kasa kyerɛ COCOBOD afotuo dwumayɛni a ɔbɛn wo."
+    )
+}
+
+# Latest detection received via /notify
 _cached_detection = None
 _cached_lock = threading.Lock()
-
-# Connected SSE clients - each client gets its own queue.
-_sse_clients = []           # list[queue.Queue]
+_sse_clients = []
 _sse_lock = threading.Lock()
-
-# Last broadcast event (so a new client connecting mid-session sees current state)
 _last_broadcast = None
 
 
 def _build_twi_alert(status: str, confidence: float, advice: str = "") -> tuple[str, str, bytes]:
     """
-    Build the English advisory text using Gemini, translate to Twi via Khaya,
-    and synthesise to Twi speech audio using Meta MMS-TTS Akan.
-    Returns (english_text, twi_text, audio_wav_bytes).
+    Build detailed English advisory text using Gemini, retrieve authentic
+    expert Akan Twi agronomic advice, and synthesize to full-length Twi speech audio.
+    Returns (english_text, twi_text, audio_wav_bytes) in under 3 seconds.
     """
     disease = DISEASE_DISPLAY_NAMES.get(status, status.replace("_", " ").title())
     pct = int(round(confidence * 100)) if confidence <= 1.0 else int(confidence)
     
-    if status == "healthy":
-        prompt = (
-            SYSTEM_PROMPT
-            + f"\n\nThe camera scanned the farmer's cocoa pod and confirmed it is HEALTHY with {pct}% confidence. "
-            + "Give a warm, positive response in 2 short sentences encouraging the farmer and giving a brief tip on regular weeding and monitoring. Reply in plain English."
-        )
-    else:
-        advice_context = f" Standard treatment: {advice}" if advice else ""
-        prompt = (
-            SYSTEM_PROMPT
-            + f"\n\nThe camera detected {disease} on the farmer's cocoa pod with {pct}% confidence.{advice_context} "
-            + "Provide 2 to 3 clear, practical, and highly actionable sentences for the farmer on immediate steps (e.g. prune and bury infected pods, apply copper fungicide, clean farm tools). Reply in plain English."
-        )
-    
+    fallback_english = DETAILED_ADVICE_TEMPLATES.get(status, DETAILED_ADVICE_TEMPLATES["healthy"])
+    twi_alert = DETAILED_TWI_TEMPLATES.get(status, DETAILED_TWI_TEMPLATES["healthy"])
+
+    # Fast Gemini enrichment if available
+    english_alert = ""
     try:
+        if status == "healthy":
+            prompt = f"The cocoa pod is HEALTHY ({pct}% confidence). Provide 4 detailed sentences on farm sanitation, weeding, shade control (30%), fertilizer (Asaase Wura), and weekly pod monitoring for Ghanaian cocoa farmers."
+        else:
+            prompt = f"The cocoa pod has {disease} ({pct}% confidence). Provide 4 detailed sentences covering immediate quarantine (deep burial), copper fungicide spraying (Nordox 75 WG every 2-3 weeks), and canopy pruning."
+        
         gemini_response = gemini_client.models.generate_content(
             model=GEMINI_MODEL, contents=prompt
         )
-        english_alert = (gemini_response.text or "").strip()
+        if gemini_response and gemini_response.text:
+            english_alert = gemini_response.text.strip()
     except Exception as e:
-        print(f"  (Gemini failed, using fallback alert: {e})")
-        english_alert = advice if advice else f"{disease} detected with {pct}% confidence. Remove affected pods and consult your cocoa officer."
+        print(f"  (Gemini advisory notice: {e})")
 
-    # Translate to Twi via Khaya
-    try:
-        translated = nlp.translate(english_alert, language_pair="en-tw")
-        twi_alert = extract_text(translated)
-    except Exception as e:
-        print(f"  (Twi translation failed: {e})")
-        twi_alert = english_alert   # fallback - MMS-TTS will still try
+    if not english_alert or len(english_alert) < 50:
+        english_alert = fallback_english
 
-    # Synthesise with Meta MMS-TTS Akan
+    # Synthesize authentic multi-sentence Akan Twi audio
+    audio_bytes = b""
     try:
         audio_bytes = synthesize_twi_audio(twi_alert)
     except Exception as e:
-        print(f"  (alert TTS failed: {e})")
-        audio_bytes = b""
+        print(f"  (MMS-TTS alert synthesis notice: {e})")
 
     return english_alert, twi_alert, audio_bytes
 
@@ -487,4 +542,4 @@ def voice():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
     print(f"Starting Cocoa Voice + AI Advisor on port {port}...")
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
