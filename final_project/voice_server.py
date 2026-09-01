@@ -371,6 +371,8 @@ def stream():
 
 
 @app.route("/voice", methods=["POST"])
+@app.route("/ask", methods=["POST"])
+@app.route("/voice-query", methods=["POST"])
 def voice():
     """
     Main endpoint. Browser sends audio as multipart form field 'audio'.

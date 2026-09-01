@@ -463,8 +463,14 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
     formData.append('audio', audioBlob, 'farmer_query.webm');
 
     try {
-      const res = await fetch(`${VOICE_SERVER}/ask`, { method: 'POST', body: formData });
-      if (!res.ok) throw new Error("Voice server failed to process question.");
+      let res = await fetch(`${VOICE_SERVER}/ask`, { method: 'POST', body: formData }).catch(() => null);
+      if (!res || !res.ok) {
+        res = await fetch(`${VOICE_SERVER}/voice`, { method: 'POST', body: formData }).catch(() => null);
+      }
+      
+      if (!res || !res.ok) {
+        throw new Error("Voice server failed to process question. Ensure voice_server.py is running on port 5001.");
+      }
       const data = await res.json();
 
       setPipelineSteps(p => p.map(s => ({ ...s, status: 'success' })));
