@@ -178,18 +178,38 @@ def get_last():
     return jsonify(latest_detection)
 
 
+@app.errorhandler(Exception)
+def handle_exception(e):
+    import traceback
+    print(f"[YOLO Server Exception]: {traceback.format_exc()}", flush=True)
+    return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
 @app.route("/upload", methods=["POST"])
 def upload():
-    """Receive an uploaded image file via multipart form-data."""
-    if "image" not in request.files:
-        return jsonify({"error": "No image file provided. Send as multipart 'image' field."}), 400
-
-    file = request.files["image"]
-    if not file.filename:
-        return jsonify({"error": "No file selected"}), 400
-
+    """Receive an uploaded image file via multipart form-data or JSON base64."""
     try:
-        img = Image.open(file.stream).convert("RGB")
+        img = None
+        if "image" in request.files:
+            file = request.files["image"]
+            if file.filename:
+                image_bytes = file.read()
+                if image_bytes:
+                    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+
+        if img is None and request.is_json:
+            data = request.get_json(silent=True) or {}
+            b64_str = data.get("image") or data.get("image_base64")
+            if b64_str:
+                import base64
+                if "," in b64_str:
+                    b64_str = b64_str.split(",", 1)[1]
+                raw = base64.b64decode(b64_str)
+                img = Image.open(io.BytesIO(raw)).convert("RGB")
+
+        if img is None:
+            return jsonify({"error": "No image file provided. Send as multipart 'image' field or JSON 'image' base64."}), 400
+
         detection = perform_yolo_inference(img)
         return jsonify({
             "success": True,
@@ -197,7 +217,8 @@ def upload():
             "detection": detection
         })
     except Exception as e:
-        print(f"[YOLO] Upload error: {e}", flush=True)
+        import traceback
+        print(f"[YOLO] Upload error: {traceback.format_exc()}", flush=True)
         return jsonify({"error": f"Model inference failed: {str(e)}"}), 500
 
 

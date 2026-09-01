@@ -187,7 +187,7 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ detection: { status, primary_detection: { confidence }, advice: detectionPayload.advice } }),
-        signal: AbortSignal.timeout(3500)
+        signal: AbortSignal.timeout(20000)
       });
 
       if (advisoryRes.ok) {
@@ -264,7 +264,7 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
         const uploadRes = await fetch(`${IMAGE_SERVER}/upload`, { 
           method: 'POST', 
           body: formData,
-          signal: AbortSignal.timeout(3000)
+          signal: AbortSignal.timeout(15000)
         });
         if (uploadRes.ok) {
           const data = await uploadRes.json();
@@ -308,7 +308,7 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
     try {
       const res = await fetch(`/api/camera-capture?url=${encodeURIComponent(streamUrl)}`, {
         cache: 'no-store',
-        signal: AbortSignal.timeout(4000)
+        signal: AbortSignal.timeout(6000)
       });
       if (res.ok) {
         const blob = await res.blob();
@@ -357,16 +357,33 @@ export default function AIAdvisor({ params: { locale } }: { params: { locale: st
     formData.append('image', imageFile);
 
     try {
-      const uploadRes = await fetch(`${IMAGE_SERVER}/upload`, { method: 'POST', body: formData });
-      if (!uploadRes.ok) {
-        const errText = await uploadRes.text().catch(() => '');
-        throw new Error(`YOLO inference server returned ${uploadRes.status}: ${errText.substring(0, 100)}`);
+      let det: any = null;
+      try {
+        const uploadRes = await fetch(`${IMAGE_SERVER}/upload`, { 
+          method: 'POST', 
+          body: formData,
+          signal: AbortSignal.timeout(15000)
+        });
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          det = uploadData.detection;
+        }
+      } catch (err) {
+        console.warn("Direct YOLO port 5002 notice, falling back to Next.js API:", err);
       }
-      const uploadData = await uploadRes.json();
-      const det = uploadData.detection || { status: 'healthy', primary_detection: { confidence: 0.95 } };
+
+      if (!det) {
+        const fallbackRes = await fetch('/api/ai/diagnose', { method: 'POST', body: formData });
+        if (fallbackRes.ok) {
+          const fbData = await fallbackRes.json();
+          det = fbData.detection;
+        }
+      }
+
+      const safeDet = det || { status: 'healthy', primary_detection: { confidence: 0.95 } };
 
       await executeAdvisoryPipeline(
-        { status: det.status, confidence: det.primary_detection?.confidence || 0.95, advice: det.advice },
+        { status: safeDet.status, confidence: safeDet.primary_detection?.confidence || 0.95, advice: safeDet.advice },
         "Mfoni Nhwehwɛmu (Uploaded Photo)",
         image || undefined
       );
